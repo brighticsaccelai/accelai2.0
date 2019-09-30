@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head><meta charset="utf-8" />
-<title>DataSetManagement-Basic</title>
+<title>DataSetManagement-RetryAPI</title>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.1.10/require.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
@@ -11751,7 +11751,7 @@ div#notebook {
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<h1 id="SBrain-DataSet-APIs-Tutorial-"><div class="alert alert-block alert-info" style="border-width:4px">SBrain DataSet APIs Tutorial </div><a class="anchor-link" href="#SBrain-DataSet-APIs-Tutorial-">&#182;</a></h1>
+<h1 id="SBrain-DataSet-Retry-API-"><div class="alert alert-block alert-info" style="border-width:4px">SBrain DataSet Retry API </div><a class="anchor-link" href="#SBrain-DataSet-Retry-API-">&#182;</a></h1>
 </div>
 </div>
 </div>
@@ -11760,7 +11760,18 @@ div#notebook {
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<h3 id="NOTE-:-*-This-is-a-sample-notebook.-Please-make-a-copy-of-it-for-yourself-and-try-it-out.">NOTE : * This is a sample notebook. Please make a copy of it for yourself and try it out.<a class="anchor-link" href="#NOTE-:-*-This-is-a-sample-notebook.-Please-make-a-copy-of-it-for-yourself-and-try-it-out.">&#182;</a></h3>
+<h3 id="NOTE-:-This-is-a-sample-notebook.-Please-make-a-copy-of-it-for-yourself-and-try-it-out.">NOTE : This is a sample notebook. Please make a copy of it for yourself and try it out.<a class="anchor-link" href="#NOTE-:-This-is-a-sample-notebook.-Please-make-a-copy-of-it-for-yourself-and-try-it-out.">&#182;</a></h3><p>This notebook is a follow up tutorial. 
+Please make sure to go through the <a href="./DataSetManagement-Basic.ipynb">DataSetManagement-Basic</a> before trying out this notebook.
+<a id='top'></a>
+This notebook covers the following:</p>
+<ul>
+<li><a href="#faulty_image_iterator">Create DataSet With Faulty Image Iterator</a></li>
+<li><a href="#retry_api">DataSetImageClassification Retry API</a></li>
+<li><a href="#fix_image_iterator">Using Retry() API To Fix Faulty Image Iterator</a></li>
+<li><a href="#faulty_label_iterator">Create DataSet With Faulty Label Iterator</a></li>
+<li><a href="#fix_label_iterator">Using Retry() API To Fix Faulty Label Iterator</a></li>
+</ul>
+
 </div>
 </div>
 </div>
@@ -11769,35 +11780,8 @@ div#notebook {
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<p><a id='top'></a>
-This tutorial covers the following:</p>
-<ul>
-<li><p><a href="#create_dataset">Create DataSet</a></p>
-</li>
-<li><p><a href="#search_datasets">Search And Retrieve Existing DataSets</a></p>
-</li>
-<li><p><a href="#search_versions">Search And Retrieve DataSet Versions</a></p>
-</li>
-<li><p><a href="#trans">Transforming DataSet Versions To Generate New DataSet Versions</a></p>
-<ul>
-<li><a href="#define_trans">Defining and Saving Transformations</a></li>
-<li><a href="#test_trans">Testing Set of Transformations on Single Image</a></li>
-<li><a href="#run_trans">Running Transformation Job</a></li>
-<li><a href="#reuse_trans">Reusing Transformations</a></li>
-</ul>
-</li>
-<li><p><a href="#splits">Creating Training/Test/Validation Splits</a></p>
-</li>
-<li><p><a href="#search_splits">Searching And Retrieving DataSet Splits</a></p>
-</li>
-</ul>
-<p>We are using a subset of the <a href="https://en.wikipedia.org/wiki/CIFAR-10">cifar_10 dataset</a>, which has pictures of animals, airplanes, ships and so on.</p>
-<p>Let's first import all the packages that you will need during this tutorial.</p>
-<ul>
-<li>sbrain.dataset is the SBrain package with abstractions necessary to use SBrain's DataSet functionalities.</li>
-<li><a href="www.numpy.org">numpy</a> is the fundamental package for scientific computing with Python.</li>
-<li>cv2  i.e. <a href="https://opencv.org">openCV</a> is a popular computer vision library </li>
-</ul>
+<p>This tutorial shows how to resume dataset creation, in case there is a failure due to 
+image_iterator or label_iterator</p>
 
 </div>
 </div>
@@ -11809,7 +11793,7 @@ This tutorial covers the following:</p>
     <div class="input_area">
 <div class=" highlight hl-ipython3"><pre><span></span><span class="kn">from</span> <span class="nn">sbrain.dataset</span> <span class="k">import</span> <span class="n">DataSetImageClassification</span><span class="p">,</span><span class="n">DataSetVersion</span><span class="p">,</span><span class="n">DataSetSplit</span>
 <span class="kn">from</span> <span class="nn">sbrain.dataset</span> <span class="k">import</span> <span class="n">DataSetStatus</span><span class="p">,</span><span class="n">JobStatus</span><span class="p">,</span><span class="n">DataSetSplitStatus</span><span class="p">,</span><span class="n">DataSetVersionStatus</span>
-<span class="kn">from</span> <span class="nn">sbrain.dataset</span> <span class="k">import</span> <span class="n">Transformation</span><span class="p">,</span><span class="n">TransformationSet</span>
+<span class="kn">from</span> <span class="nn">sbrain.dataset</span> <span class="k">import</span> <span class="n">Transformation</span>
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">import</span> <span class="nn">cv2</span>
 <span class="kn">import</span> <span class="nn">uuid</span>
@@ -11827,10 +11811,8 @@ This tutorial covers the following:</p>
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<h4 id="NOTE:"><strong><em>NOTE</em></strong>:<a class="anchor-link" href="#NOTE:">&#182;</a></h4><p>Please set the username you used to log into sbrain ui in the following cell.
-This value will be used to pass in the search apis to limit the results to the assets created
-by the current user. Its just for illustration purposes.</p>
-<p>User can search other users assets and reuse them by passing in other user's username in search apis.</p>
+<h4 id="NOTE:-Following-values-should-be-unique-across-the-SBrain-System."><strong><em>NOTE</em></strong>: Following values should be unique across the SBrain System.<a class="anchor-link" href="#NOTE:-Following-values-should-be-unique-across-the-SBrain-System.">&#182;</a></h4><p>Please set it to some unique value before starting the tutorial, 
+otherwise it will throw duplicate entry found error.</p>
 
 </div>
 </div>
@@ -11848,36 +11830,6 @@ by the current user. Its just for illustration purposes.</p>
 </div>
 
 </div>
-<div class="cell border-box-sizing text_cell rendered">
-<div class="prompt input_prompt">
-</div>
-<div class="inner_cell">
-<div class="text_cell_render border-box-sizing rendered_html">
-<p><a id='create_dataset'></a></p>
-<h1 id="Create-DataSet"><em>Create DataSet</em><a class="anchor-link" href="#Create-DataSet">&#182;</a></h1><div align="right"><a href="#top">BackToTheTop</a></div>
-</div>
-</div>
-</div>
-<div class="cell border-box-sizing text_cell rendered">
-<div class="prompt input_prompt">
-</div>
-<div class="inner_cell">
-<div class="text_cell_render border-box-sizing rendered_html">
-<p><strong><em>sbrain.dataset.DataSetImageClassification</em></strong> is an abstraction which supports creating and handling of image dataset for classification model training.</p>
-<p>DataSetImageClassification construtor takes the <strong><em>name</em></strong> of the parameter as input.</p>
-<p><strong><em>DataSetImageClassification.create()</em></strong> method takes following parameters:</p>
-<ul>
-<li><strong>source_archive_path</strong> : the path to the folder containing the images and labels. </li>
-<li><strong>classes</strong> : [optional] a dict with class names in the dataset as the keys and class ids as values</li>
-<li><strong>collection_date</strong> : date of collection of data in string format <strong><em>mm-dd-yyyy</em></strong></li>
-<li><strong>image_iterator</strong> : function returning an iterator to the list of path of images in the archive</li>
-<li><strong>label_iterator</strong> : function returning an iterator. Each element returned by iterator is 
-a tuple (image name, class id)</li>
-</ul>
-
-</div>
-</div>
-</div>
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
 <div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
@@ -11892,6 +11844,36 @@ a tuple (image name, class id)</li>
 </div>
 </div>
 
+</div>
+<div class="cell border-box-sizing text_cell rendered">
+<div class="prompt input_prompt">
+</div>
+<div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p><a id='faulty_image_iterator'></a></p>
+<h1 id="Create-DataSet-With-Faulty-Image-Iterator"><em>Create DataSet With Faulty Image Iterator</em><a class="anchor-link" href="#Create-DataSet-With-Faulty-Image-Iterator">&#182;</a></h1><div align="right"><a href="#top">BackToTheTop</a></div>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing text_cell rendered">
+<div class="prompt input_prompt">
+</div>
+<div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p><strong><em>sbrain.dataset.DataSetImageClassification</em></strong> is an abstraction which supports creating and handling of image dataset for classification model training.</p>
+<p>DataSetImageClassification construtor takes the <strong><em>name</em></strong> of the parameter as input.</p>
+<p><strong><em>DataSetImageClassification.create()</em></strong> method takes following parameters:</p>
+<ul>
+<li><strong>source_archive_path</strong> : the path to the directory containing the images and labels. </li>
+<li><strong>classes</strong> :[optional] a dict with class names in the dataset as the keys and class ids as values</li>
+<li><strong>collection_date</strong> : date of collection of data in string format <strong><em>mm-dd-yyyy</em></strong></li>
+<li><strong>image_iterator</strong> : function returning an iterator to the list of path of images in the archive</li>
+<li><strong>label_iterator</strong> : function returning an iterator. Each element returned by iterator is 
+a tuple (image name, class id)</li>
+</ul>
+
+</div>
+</div>
 </div>
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
@@ -11919,6 +11901,15 @@ a tuple (image name, class id)</li>
 </div>
 
 </div>
+<div class="cell border-box-sizing text_cell rendered">
+<div class="prompt input_prompt">
+</div>
+<div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<h4 id="NOTE-:-In-the-following-example-the-image-iterator,-an-exception-has-been-artificially-introduced-to-show-dataset-creation-failing-due-to-faulty-image_iterator-function">NOTE : In the following example the image iterator, an exception has been artificially introduced to show dataset creation failing due to faulty image_iterator function<a class="anchor-link" href="#NOTE-:-In-the-following-example-the-image-iterator,-an-exception-has-been-artificially-introduced-to-show-dataset-creation-failing-due-to-faulty-image_iterator-function">&#182;</a></h4>
+</div>
+</div>
+</div>
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
 <div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
@@ -11926,11 +11917,18 @@ a tuple (image name, class id)</li>
     <div class="input_area">
 <div class=" highlight hl-ipython3"><pre><span></span><span class="c1"># defining iterator to get image file paths</span>
 
-<span class="k">def</span> <span class="nf">iterator_images</span><span class="p">(</span><span class="n">data_root_path</span><span class="p">):</span>
+<span class="k">def</span> <span class="nf">faulty_iterator_images</span><span class="p">(</span><span class="n">data_root_path</span><span class="p">):</span>
     <span class="kn">import</span> <span class="nn">glob</span>
     <span class="n">result</span> <span class="o">=</span> <span class="p">[]</span>
     <span class="n">files</span> <span class="o">=</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{}</span><span class="s2">/*.*&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">data_root_path</span><span class="p">))</span>
-    <span class="k">return</span> <span class="nb">iter</span><span class="p">(</span><span class="n">files</span><span class="p">)</span>
+    <span class="n">cnt</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">files</span><span class="p">:</span>
+        <span class="n">cnt</span> <span class="o">=</span> <span class="n">cnt</span><span class="o">+</span><span class="mi">1</span>
+        <span class="k">if</span> <span class="n">cnt</span> <span class="o">==</span> <span class="mi">50</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Sample exception just for testing&quot;</span><span class="p">)</span>
+            
+        <span class="k">yield</span> <span class="n">f</span>
+    
 
 <span class="c1"># defining iterator to get tuples (image_name, class_id) e.g. (xyz.jpeg,1)</span>
 <span class="k">def</span> <span class="nf">iterator_labels</span><span class="p">(</span><span class="n">data_root_path</span><span class="p">):</span>
@@ -11954,7 +11952,9 @@ a tuple (image name, class id)</li>
         <span class="n">lbl_str</span> <span class="o">=</span> <span class="n">img_name</span><span class="p">[</span><span class="n">img_name</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s1">&#39;_&#39;</span><span class="p">)</span><span class="o">+</span><span class="mi">1</span><span class="p">:</span><span class="n">img_name</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)]</span>
         <span class="n">lbl_id</span> <span class="o">=</span> <span class="n">classes</span><span class="p">[</span><span class="n">lbl_str</span><span class="p">]</span>
         <span class="n">labels</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">img_name</span><span class="p">,</span> <span class="n">lbl_id</span><span class="p">))</span>    
-    <span class="k">return</span> <span class="nb">iter</span><span class="p">(</span><span class="n">labels</span><span class="p">)</span>
+    <span class="k">return</span> <span class="nb">iter</span><span class="p">(</span><span class="n">labels</span><span class="p">)</span>  
+    
+  
 </pre></div>
 
 </div>
@@ -11967,10 +11967,7 @@ a tuple (image name, class id)</li>
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<h4 id="DataSet.create()-will-return-a-DataSetExtractionJob-object">DataSet.create() will return a DataSetExtractionJob object<a class="anchor-link" href="#DataSet.create()-will-return-a-DataSetExtractionJob-object">&#182;</a></h4><p>The job object can be used to track the progress of DataSet creation.</p>
-<p>job.getdataset() will return a DataSet object that's a handle to the new dataset created</p>
-<h4 id="NOTE:">NOTE:<a class="anchor-link" href="#NOTE:">&#182;</a></h4><p><strong>job.cancel()</strong> api can be used any time to cancel the dataset creation job.</p>
-
+<h3 id="NOTE-:-After-a-few-mins-the-job-will-fail-and-you-should-see-a-message-saying-&quot;Please-fix-your-image-iterator-and-use-ImageClassification.retry()-api">NOTE : After a few mins the job will fail and you should see a message saying "Please fix your image iterator and use ImageClassification.retry() api<a class="anchor-link" href="#NOTE-:-After-a-few-mins-the-job-will-fail-and-you-should-see-a-message-saying-&quot;Please-fix-your-image-iterator-and-use-ImageClassification.retry()-api">&#182;</a></h3>
 </div>
 </div>
 </div>
@@ -11980,7 +11977,6 @@ a tuple (image name, class id)</li>
 <div class="inner_cell">
     <div class="input_area">
 <div class=" highlight hl-ipython3"><pre><span></span><span class="c1"># creating dataset</span>
-
 <span class="n">dataset_name</span> <span class="o">=</span> <span class="s2">&quot;cifar10-small-</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">unique_id</span><span class="p">())</span>
 
 <span class="n">job</span> <span class="o">=</span> <span class="n">DataSetImageClassification</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">dataset_name</span><span class="p">)</span><span class="o">.</span><span class="n">create</span><span class="p">(</span>
@@ -11988,7 +11984,7 @@ a tuple (image name, class id)</li>
     <span class="n">source_archive_path</span> <span class="o">=</span> <span class="s2">&quot;shared-dir/sample-notebooks/demo-data/cifar10_small&quot;</span><span class="p">,</span>
     <span class="n">classes</span><span class="o">=</span><span class="n">classes</span><span class="p">,</span>
     <span class="n">collection_date</span><span class="o">=</span><span class="s2">&quot;07-25-2018&quot;</span><span class="p">,</span>
-    <span class="n">image_iterator</span><span class="o">=</span><span class="n">iterator_images</span><span class="p">,</span>
+    <span class="n">image_iterator</span><span class="o">=</span><span class="n">faulty_iterator_images</span><span class="p">,</span>
     <span class="n">label_iterator</span><span class="o">=</span><span class="n">iterator_labels</span>
 <span class="p">)</span>
 
@@ -12005,26 +12001,14 @@ a tuple (image name, class id)</li>
 </div>
 
 </div>
-<div class="cell border-box-sizing code_cell rendered">
-<div class="input">
-<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
-<div class="inner_cell">
-    <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span></span><span class="n">ds</span> <span class="o">=</span> <span class="n">job</span><span class="o">.</span><span class="n">get_dataset</span><span class="p">()</span>
-</pre></div>
-
-</div>
-</div>
-</div>
-
-</div>
 <div class="cell border-box-sizing text_cell rendered">
 <div class="prompt input_prompt">
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<p><a id='search_datasets'></a></p>
-<h1 id="Search-And-Retrieve-Existing-DataSets"><em>Search And Retrieve Existing DataSets</em><a class="anchor-link" href="#Search-And-Retrieve-Existing-DataSets">&#182;</a></h1><div align="right"><a href="#top">BackToTheTop</a></div>
+<h4 id="DataSet.create()-will-return-a-DataSetExtractionJob-object">DataSet.create() will return a DataSetExtractionJob object<a class="anchor-link" href="#DataSet.create()-will-return-a-DataSetExtractionJob-object">&#182;</a></h4><p>The job object can be used to track the progress of DataSet creation.</p>
+<p>job.getdataset() will return a DataSet object that's a handle to the new dataset created</p>
+
 </div>
 </div>
 </div>
@@ -12033,15 +12017,7 @@ a tuple (image name, class id)</li>
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<p><strong><em>DataSetImageClassification.search()</em></strong> api helps to search for existing datasets using</p>
-<ul>
-<li><strong>author</strong> : name of the user who created dataset and/or </li>
-<li><strong>name</strong> : name of the dataset and/or </li>
-<li><strong>description</strong> : keywords in description 
-<br>DataSets which partially match any of the given parameters are returned.</li>
-</ul>
-<p><strong><em>DataSetImageClassification.lookup()</em></strong> can be used to retrieve a dataset object using dataset name. The name needs to match exactly.</p>
-
+<h4 id="Search-results-will-show-the-dataset--and-the-version-&quot;v1&quot;-(default-version-of-any-dataset)-with-status-&quot;CreationFailed&quot;">Search results will show the dataset  and the version "v1" (default version of any dataset) with status "CreationFailed"<a class="anchor-link" href="#Search-results-will-show-the-dataset--and-the-version-&quot;v1&quot;-(default-version-of-any-dataset)-with-status-&quot;CreationFailed&quot;">&#182;</a></h4>
 </div>
 </div>
 </div>
@@ -12050,24 +12026,9 @@ a tuple (image name, class id)</li>
 <div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
 <div class="inner_cell">
     <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span></span><span class="c1"># list all the images which belong to a user for example</span>
-<span class="c1"># datasets can also be searched by partial names or desciptions</span>
-
-<span class="n">DataSetImageClassification</span><span class="o">.</span><span class="n">search</span><span class="p">(</span> <span class="n">author</span> <span class="o">=</span> <span class="n">user_name</span> <span class="p">)</span>
-</pre></div>
-
-</div>
-</div>
-</div>
-
-</div>
-<div class="cell border-box-sizing code_cell rendered">
-<div class="input">
-<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
-<div class="inner_cell">
-    <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span></span><span class="c1"># lookup returns a DataSetImageClassification object that can be used to search versions. </span>
+<div class=" highlight hl-ipython3"><pre><span></span><span class="n">DataSetImageClassification</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">dataset_name</span><span class="p">)</span>
 <span class="n">ds</span> <span class="o">=</span> <span class="n">DataSetImageClassification</span><span class="o">.</span><span class="n">lookup</span><span class="p">(</span><span class="n">dataset_name</span><span class="p">)</span>
+<span class="n">ds</span><span class="o">.</span><span class="n">search_versions</span><span class="p">(</span><span class="n">version_name</span><span class="o">=</span><span class="s2">&quot;v1&quot;</span><span class="p">)</span>
 </pre></div>
 
 </div>
@@ -12080,88 +12041,34 @@ a tuple (image name, class id)</li>
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<p><a id='search_versions'></a></p>
-<h1 id="Search-And-Retrieve-DataSet-Versions"><em>Search And Retrieve DataSet Versions</em><a class="anchor-link" href="#Search-And-Retrieve-DataSet-Versions">&#182;</a></h1><p><strong><strong>DataSetImageClassification.search_versions()</strong></strong> can be used to lookup and list out all dataset versions derived from the given dataset using</p>
+<p><a id='retry_api'></a></p>
+<h1 id="DataSetImageClassification-Retry-API">DataSetImageClassification Retry API<a class="anchor-link" href="#DataSetImageClassification-Retry-API">&#182;</a></h1><div align="right"><a href="#top">BackToTheTop</a></div>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing text_cell rendered">
+<div class="prompt input_prompt">
+</div>
+<div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p><strong>_DataSetImageClassification.retry<em>create()</em></strong> api can be used with the following parameters:</p>
 <ul>
-<li><strong><strong>'version_author'</strong></strong> i.e. name of the user who created dataset and/or </li>
-<li><strong><strong>'version_name'</strong></strong> i.e. name of the dataset and/or </li>
-<li><strong><strong>'version_description'</strong></strong>. 
-<br>DataSet Versions which partially match any of the given parameters are returned.</li>
+<li><strong>source_archive_path</strong> :[optional] the path to the directory containing the images and labels.</li>
+<li><strong>image_iterator</strong> : [optional] function returning an iterator to the list of path of images in the archive</li>
+<li><strong>label_iterator</strong> : [optional] function returning an iterator. Each element returned by iterator is a tuple (image name, class id)</li>
+<li><strong>classes</strong> :[optional] a dict with class names in the dataset as the keys and class ids as values</li>
+<li><strong>collection_date</strong> : [optional] date of collection of data in string format <strong><em>mm-dd-yyyy</em></strong></li>
 </ul>
-<p><strong><strong>DataSetImageClassification.version()</strong></strong> can be used to retrieve a particular <strong>DataSetVersion</strong> by name</p>
-<div align="right"><a href="#top">BackToTheTop</a></div>
-</div>
-</div>
-</div>
-<div class="cell border-box-sizing code_cell rendered">
-<div class="input">
-<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
-<div class="inner_cell">
-    <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span></span><span class="c1"># list all the versions of the dataset which satisfy the given search criteria</span>
-<span class="c1"># this will print out the details of those versions</span>
-
-<span class="n">ds</span><span class="o">.</span><span class="n">search_versions</span><span class="p">(</span><span class="n">version_author</span> <span class="o">=</span> <span class="n">user_name</span><span class="p">)</span>
-</pre></div>
-
-</div>
-</div>
-</div>
-
-</div>
-<div class="cell border-box-sizing code_cell rendered">
-<div class="input">
-<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
-<div class="inner_cell">
-    <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span></span><span class="n">DataSetVersion</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">author</span><span class="o">=</span> <span class="n">user_name</span><span class="p">,</span> <span class="n">dataset_name</span><span class="o">=</span><span class="n">dataset_name</span><span class="p">)</span>
-</pre></div>
-
-</div>
-</div>
-</div>
-
-</div>
-<div class="cell border-box-sizing code_cell rendered">
-<div class="input">
-<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
-<div class="inner_cell">
-    <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span></span><span class="c1"># following method will return a DataSetVersion object </span>
-<span class="c1"># which can be used to invoke transformations or creating splits</span>
-<span class="c1"># Version &quot;v1&quot; is created by default when dataset is created</span>
-
-<span class="n">ds_version</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">version</span><span class="p">(</span><span class="s2">&quot;v1&quot;</span><span class="p">)</span>
-</pre></div>
-
-</div>
-</div>
-</div>
-
-</div>
-<div class="cell border-box-sizing text_cell rendered">
-<div class="prompt input_prompt">
-</div>
-<div class="inner_cell">
-<div class="text_cell_render border-box-sizing rendered_html">
-<p><a id='trans'></a></p>
-<h1 id="Transforming-DataSet-Versions-To-Generate-New-DataSet-Versions"><em>Transforming DataSet Versions To Generate New DataSet Versions</em><a class="anchor-link" href="#Transforming-DataSet-Versions-To-Generate-New-DataSet-Versions">&#182;</a></h1><div align="right"><a href="#top">BackToTheTop</a></div>
-</div>
-</div>
-</div>
-<div class="cell border-box-sizing text_cell rendered">
-<div class="prompt input_prompt">
-</div>
-<div class="inner_cell">
-<div class="text_cell_render border-box-sizing rendered_html">
-<p><a id='define_trans'></a>
-SBrain provides <strong><em>sbrain.dataset.Transformation</em></strong> abstraction that can be used to run transformations on a DataSetVersion at scale.</p>
-<h2 id="Defining-and-Saving-Transformations">Defining and Saving Transformations<a class="anchor-link" href="#Defining-and-Saving-Transformations">&#182;</a></h2><p>Define custom transactions as one or more classes, each of which will inherit from <strong><em>Transformation</em></strong> class as shown below.</p>
-<p><font color="red">IMPORTANT:</font></p>
+<p>NOTE :</p>
 <ol>
-<li>The custom transformation needs to extend the sbrain.dataset.Transformation class</li>
-<li>And provide a 'process' method which takes in and gives out image as numpy array</li>
-<li>NOTE : Right now transformations support only open cv library.<div align="right"><a href="#top">BackToTheTop</a></div></li>
+<li><p>if "source_archive_path" parameter is not provided while retry_create(), the original path provided while dataset.create() api will be used</p>
+</li>
+<li><p>if the dataset.create() failed because of faulty image iterator, you can call the retry_create() with only the "image_iterator" parameter. Other parameters are optional and the original values provided in create() will be used</p>
+</li>
+<li><p>if the dataset.create() failed because of faulty label iterator, you can call the retry_create() with only the "label_iterator" parameter. Other parameters are optional and the original values provided in create() will be used</p>
+</li>
+<li><p>"collection_date" parameter can be used to override the date given in original create() api, only if this parameter is passed to retry_create() along with "source_archive_path" and/or "image_iterator" parameters</p>
+</li>
 </ol>
 
 </div>
@@ -12172,272 +12079,8 @@ SBrain provides <strong><em>sbrain.dataset.Transformation</em></strong> abstract
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<p>In the following example, user has written 2 different transformations, one to resize and one to flip the image.</p>
-
-</div>
-</div>
-</div>
-<div class="cell border-box-sizing code_cell rendered">
-<div class="input">
-<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
-<div class="inner_cell">
-    <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span></span><span class="k">class</span> <span class="nc">Flip</span><span class="p">(</span><span class="n">Transformation</span><span class="p">):</span>
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
-        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
-
-    <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">arr_in</span><span class="p">):</span>
-        <span class="n">rotated_image</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">flip</span><span class="p">(</span><span class="n">arr_in</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">rotated_image</span>
-    
-    
-<span class="k">class</span> <span class="nc">Resize</span><span class="p">(</span><span class="n">Transformation</span><span class="p">):</span>
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="o">**</span><span class="n">args</span><span class="p">):</span>
-        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">height</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="s2">&quot;height&quot;</span><span class="p">]</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">width</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="s2">&quot;width&quot;</span><span class="p">]</span>
-        
-
-    <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">arr_in</span><span class="p">):</span>
-        <span class="n">resized_img</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">resize</span><span class="p">(</span><span class="n">arr_in</span><span class="p">,</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">width</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">height</span><span class="p">))</span>
-        <span class="k">return</span> <span class="n">resized_img</span>
-</pre></div>
-
-</div>
-</div>
-</div>
-
-</div>
-<div class="cell border-box-sizing text_cell rendered">
-<div class="prompt input_prompt">
-</div>
-<div class="inner_cell">
-<div class="text_cell_render border-box-sizing rendered_html">
-<p><strong><em>Transformation.create()</em></strong> from base class, is used to save an instance of the transformation in the SBrain. Which can be reused by overriding the parameters.</p>
-
-</div>
-</div>
-</div>
-<div class="cell border-box-sizing code_cell rendered">
-<div class="input">
-<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
-<div class="inner_cell">
-    <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span></span><span class="c1"># initialize and create a transformations</span>
-<span class="c1"># NOTE : unless the create method is called, the transformation is not saved in SBrain system, and can not be used </span>
-<span class="c1">#        transformation jobs</span>
-<span class="n">flip_transformation_name</span> <span class="o">=</span> <span class="s2">&quot;flip-</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">unique_id</span><span class="p">())</span>
-<span class="n">flip</span> <span class="o">=</span> <span class="n">Flip</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">flip_transformation_name</span><span class="p">)</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">author</span><span class="o">=</span><span class="n">user_name</span><span class="p">,</span>
-                                        <span class="n">description</span><span class="o">=</span><span class="s2">&quot;flipping the image&quot;</span><span class="p">)</span>
-
-
-<span class="n">resize_transformation_name</span> <span class="o">=</span> <span class="s2">&quot;resize-</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">unique_id</span><span class="p">())</span>
-<span class="n">resize</span> <span class="o">=</span> <span class="n">Resize</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">resize_transformation_name</span><span class="p">,</span> <span class="n">height</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">author</span><span class="o">=</span><span class="n">user_name</span><span class="p">,</span>
-                                        <span class="n">description</span><span class="o">=</span><span class="s2">&quot;resizing the image&quot;</span><span class="p">)</span>
-</pre></div>
-
-</div>
-</div>
-</div>
-
-</div>
-<div class="cell border-box-sizing text_cell rendered">
-<div class="prompt input_prompt">
-</div>
-<div class="inner_cell">
-<div class="text_cell_render border-box-sizing rendered_html">
-<p><a id='test_trans'></a></p>
-<h2 id="Testing-Set-of-Transformations-on-Single-Image">Testing Set of Transformations on Single Image<a class="anchor-link" href="#Testing-Set-of-Transformations-on-Single-Image">&#182;</a></h2><div align="right"><a href="#top">BackToTheTop</a></div>
-</div>
-</div>
-</div>
-<div class="cell border-box-sizing text_cell rendered">
-<div class="prompt input_prompt">
-</div>
-<div class="inner_cell">
-<div class="text_cell_render border-box-sizing rendered_html">
-<p>In the example we are showing one transformation. In practise there can be muliple such transformations that can be chained by calling dataset_version.transform(transformation_obj_1).transform(transformation_obj_2) and so on.</p>
-<p><strong>_TransformationSet.apply_to<em>file()</em></strong> can be used to test the transformations on a single file to see the results, as shown below:</p>
-
-</div>
-</div>
-</div>
-<div class="cell border-box-sizing code_cell rendered">
-<div class="input">
-<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
-<div class="inner_cell">
-    <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span></span><span class="n">input_img</span> <span class="o">=</span> <span class="s2">&quot;../demo-data/cifar10_small/11102_horse.png&quot;</span>
-<span class="n">output_img</span> <span class="o">=</span> <span class="s2">&quot;../../11102_horse_transformed-</span><span class="si">{}</span><span class="s2">.png&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">unique_id</span><span class="p">())</span>
-<span class="n">TransformationSet</span><span class="o">.</span><span class="n">apply_to_file</span><span class="p">(</span><span class="n">src_path</span><span class="o">=</span><span class="n">input_img</span><span class="p">,</span>
-                                <span class="n">des_path</span><span class="o">=</span><span class="n">output_img</span><span class="p">,</span>
-                                <span class="n">transformations_set</span><span class="o">=</span><span class="p">[</span><span class="n">resize</span><span class="p">,</span><span class="n">flip</span><span class="p">])</span>
-</pre></div>
-
-</div>
-</div>
-</div>
-
-</div>
-<div class="cell border-box-sizing code_cell rendered">
-<div class="input">
-<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
-<div class="inner_cell">
-    <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span></span><span class="kn">from</span> <span class="nn">matplotlib</span> <span class="k">import</span> <span class="n">pyplot</span> <span class="k">as</span> <span class="n">plt</span>
-<span class="kn">from</span> <span class="nn">skimage</span> <span class="k">import</span> <span class="n">io</span>
-<span class="o">%</span><span class="k">matplotlib</span> inline
-
-<span class="n">plt</span><span class="o">.</span><span class="n">subplot</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s1">&#39;before&#39;</span><span class="p">)</span>
-<span class="n">before</span> <span class="o">=</span> <span class="n">io</span><span class="o">.</span><span class="n">imread</span><span class="p">(</span><span class="n">input_img</span><span class="p">)</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">before</span><span class="p">)</span>
-
-<span class="n">plt</span><span class="o">.</span><span class="n">subplot</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s1">&#39;after&#39;</span><span class="p">)</span>
-<span class="n">after</span> <span class="o">=</span> <span class="n">io</span><span class="o">.</span><span class="n">imread</span><span class="p">(</span><span class="n">output_img</span><span class="p">)</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">after</span><span class="p">)</span>
-</pre></div>
-
-</div>
-</div>
-</div>
-
-</div>
-<div class="cell border-box-sizing text_cell rendered">
-<div class="prompt input_prompt">
-</div>
-<div class="inner_cell">
-<div class="text_cell_render border-box-sizing rendered_html">
-<p>Once the transformation is satisfactorily written and saved, it can be used to run transformation job on the entire dataset.</p>
-
-</div>
-</div>
-</div>
-<div class="cell border-box-sizing text_cell rendered">
-<div class="prompt input_prompt">
-</div>
-<div class="inner_cell">
-<div class="text_cell_render border-box-sizing rendered_html">
-<p><a id='run_trans'></a></p>
-<h2 id="Running-Transformation-Job">Running Transformation Job<a class="anchor-link" href="#Running-Transformation-Job">&#182;</a></h2><p><strong><em>DataSetVersion.transform()</em></strong> takes a custom transformation object and returns a <strong><strong>TransformationSet</strong></strong> object.</p>
-<p>Multiple transform() calls on <strong><strong>TransformationSet</strong></strong> can be used to chain together the required transformations.</p>
-<p><strong><em>TransformationSet.run()</em></strong> deploys the transformation job on cluster.</p>
-<p>It takes the following args:</p>
-<ul>
-<li><strong>num_workers</strong>: number of workers to parallelize the transformation job</li>
-<li><strong>target_version</strong> : name of the resultant version</li>
-<li><strong>cores</strong>: number of cores to allocate for each worker. </li>
-<li><strong>memory</strong> : memory to be allocated for each worker.</li>
-</ul>
-<p>It returns:</p>
-<ul>
-<li><strong><em>TransformationJob</em></strong> object which is the handle to the job running on the cluster, and can be used to check status of the job.</li>
-</ul>
-<div align="right"><a href="#top">BackToTheTop</a></div><p><strong>TransformationJob.get_status()</strong> can be used to retrieve the current status of the job.</p>
-<p><strong>TransformationJob.cancel()</strong> can be used to cancel the job.</p>
-<p><font color="red">IMPORTANT:</font> Please make sure the DataSetVersion which is being transformed has status 'Complete'. You can see the status in the search result or DataSetVersion.status.</p>
-<h4 id="NOTE:">NOTE:<a class="anchor-link" href="#NOTE:">&#182;</a></h4><p>-- with the sample dataset transformation job takes around 2-3 mins</p>
-
-</div>
-</div>
-</div>
-<div class="cell border-box-sizing code_cell rendered">
-<div class="input">
-<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
-<div class="inner_cell">
-    <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span></span><span class="c1"># the following code launches a transformation job on the cluster </span>
-<span class="c1">#and returns TransformationJob object</span>
-<span class="n">dataset_new_version_name</span> <span class="o">=</span> <span class="s2">&quot;flip-resized-100-100-</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">unique_id</span><span class="p">())</span>
-<span class="n">tj</span> <span class="o">=</span> <span class="n">ds_version</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">flip</span><span class="p">)</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">resize</span><span class="p">)</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">target_version</span><span class="o">=</span><span class="n">dataset_new_version_name</span><span class="p">,</span> <span class="n">num_workers</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
-
-<span class="c1"># Check job status</span>
-<span class="n">status</span> <span class="o">=</span> <span class="n">tj</span><span class="o">.</span><span class="n">get_status</span><span class="p">()</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
-<span class="k">while</span> <span class="n">status</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">!=</span> <span class="s1">&#39;complete&#39;</span><span class="p">:</span>
-    <span class="n">clear_output</span><span class="p">(</span><span class="n">wait</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-    <span class="n">status</span> <span class="o">=</span> <span class="n">tj</span><span class="o">.</span><span class="n">get_status</span><span class="p">()</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
-    <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
-</pre></div>
-
-</div>
-</div>
-</div>
-
-</div>
-<div class="cell border-box-sizing code_cell rendered">
-<div class="input">
-<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
-<div class="inner_cell">
-    <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span></span><span class="c1"># get the handle to the new version after transformation </span>
-<span class="n">ds_version_transformed</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">version</span><span class="p">(</span> <span class="n">version_name</span> <span class="o">=</span>  <span class="n">dataset_new_version_name</span><span class="p">)</span>
-</pre></div>
-
-</div>
-</div>
-</div>
-
-</div>
-<div class="cell border-box-sizing text_cell rendered">
-<div class="prompt input_prompt">
-</div>
-<div class="inner_cell">
-<div class="text_cell_render border-box-sizing rendered_html">
-<p>Lets look at a sample of images of versions before and after transformation</p>
-
-</div>
-</div>
-</div>
-<div class="cell border-box-sizing code_cell rendered">
-<div class="input">
-<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
-<div class="inner_cell">
-    <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span></span><span class="kn">from</span> <span class="nn">matplotlib</span> <span class="k">import</span> <span class="n">pyplot</span> <span class="k">as</span> <span class="n">plt</span>
-<span class="kn">from</span> <span class="nn">skimage</span> <span class="k">import</span> <span class="n">io</span>
-<span class="o">%</span><span class="k">matplotlib</span> inline
-
-<span class="n">rows</span> <span class="o">=</span> <span class="mi">8</span>
-<span class="n">cols</span> <span class="o">=</span> <span class="mi">2</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">40</span><span class="p">,</span><span class="mi">50</span><span class="p">))</span>
-<span class="n">iter_before</span> <span class="o">=</span> <span class="n">ds_version</span><span class="o">.</span><span class="n">get_iterator</span><span class="p">()</span>
-<span class="n">iter_after</span> <span class="o">=</span> <span class="n">ds_version_transformed</span><span class="o">.</span><span class="n">get_iterator</span><span class="p">()</span>
-<span class="n">iter_before</span><span class="o">.</span><span class="n">reset_iterator</span><span class="p">()</span>
-<span class="n">iter_after</span><span class="o">.</span><span class="n">reset_iterator</span><span class="p">()</span>
-<span class="n">imgs_before</span> <span class="o">=</span> <span class="p">[</span><span class="n">img</span> <span class="k">for</span> <span class="n">img</span><span class="p">,</span><span class="n">lbl</span> <span class="ow">in</span> <span class="n">iter_before</span><span class="o">.</span><span class="n">next_batch</span><span class="p">(</span><span class="mi">8</span><span class="p">)]</span>
-<span class="n">imgs_after</span> <span class="o">=</span> <span class="p">[</span><span class="n">img</span> <span class="k">for</span> <span class="n">img</span><span class="p">,</span><span class="n">lbl</span> <span class="ow">in</span> <span class="n">iter_after</span><span class="o">.</span><span class="n">next_batch</span><span class="p">(</span><span class="mi">8</span><span class="p">)]</span> 
-<span class="n">imgs_before</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">imgs_before</span><span class="p">)</span>
-<span class="n">imgs_after</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">imgs_after</span><span class="p">)</span>
-<span class="n">idx</span> <span class="o">=</span> <span class="mi">0</span>
-<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">8</span><span class="p">):</span>
-    <span class="n">plt</span><span class="o">.</span><span class="n">subplot</span><span class="p">(</span><span class="n">rows</span><span class="p">,</span> <span class="n">cols</span><span class="p">,</span> <span class="n">idx</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
-    <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s1">&#39;before&#39;</span><span class="p">)</span>
-    <span class="n">before</span> <span class="o">=</span> <span class="n">io</span><span class="o">.</span><span class="n">imread</span><span class="p">(</span><span class="n">imgs_before</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
-    <span class="c1"># print(before.shape)</span>
-    <span class="n">plt</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">before</span><span class="p">)</span>
-    <span class="n">plt</span><span class="o">.</span><span class="n">subplot</span><span class="p">(</span><span class="n">rows</span><span class="p">,</span> <span class="n">cols</span><span class="p">,</span> <span class="n">idx</span> <span class="o">+</span> <span class="mi">2</span><span class="p">)</span>
-    <span class="n">h</span><span class="p">,</span><span class="n">w</span><span class="p">,</span><span class="n">_</span> <span class="o">=</span> <span class="n">before</span><span class="o">.</span><span class="n">shape</span>
-    <span class="n">ar</span> <span class="o">=</span> <span class="n">h</span><span class="o">/</span><span class="n">w</span>
-    <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s1">&#39;after&#39;</span><span class="p">)</span>
-    <span class="n">after</span> <span class="o">=</span> <span class="n">io</span><span class="o">.</span><span class="n">imread</span><span class="p">(</span><span class="n">imgs_after</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
-    <span class="c1"># print(before.shape)</span>
-    <span class="n">plt</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">after</span><span class="p">)</span> <span class="c1">#,aspect=ar)</span>
-    <span class="n">idx</span> <span class="o">=</span> <span class="n">idx</span> <span class="o">+</span> <span class="mi">2</span>
-</pre></div>
-
-</div>
-</div>
-</div>
-
-</div>
-<div class="cell border-box-sizing text_cell rendered">
-<div class="prompt input_prompt">
-</div>
-<div class="inner_cell">
-<div class="text_cell_render border-box-sizing rendered_html">
-<p><a id='reuse_trans'></a></p>
-<h2 id="Reusing-Transformations">Reusing Transformations<a class="anchor-link" href="#Reusing-Transformations">&#182;</a></h2><p>The same transformation object resize, that was initially created with 'height' and 'width' parameters set to 100, can be used to perform another transformation, for example, with just changing height and width to '300'</p>
+<p><a id='fix_image_iterator'></a></p>
+<h2 id="Using-Retry()-API-To-Fix-Faulty-Image-Iterator">Using Retry() API To Fix Faulty Image Iterator<a class="anchor-link" href="#Using-Retry()-API-To-Fix-Faulty-Image-Iterator">&#182;</a></h2><p>Lets retry creation using an image_iterator that is fixed now.</p>
 <div align="right"><a href="#top">BackToTheTop</a></div>
 </div>
 </div>
@@ -12447,14 +12090,13 @@ SBrain provides <strong><em>sbrain.dataset.Transformation</em></strong> abstract
 <div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
 <div class="inner_cell">
     <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span></span><span class="n">flip_resize_300_name</span> <span class="o">=</span> <span class="s2">&quot;flip-resize-300-</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">unique_id</span><span class="p">())</span>
-<span class="n">tj2</span> <span class="o">=</span> <span class="n">ds_version</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">resize</span><span class="o">.</span><span class="n">override</span><span class="p">(</span><span class="n">height</span><span class="o">=</span><span class="mi">300</span><span class="p">,</span><span class="n">width</span><span class="o">=</span><span class="mi">300</span><span class="p">))</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">num_workers</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">target_version</span><span class="o">=</span><span class="n">flip_resize_300_name</span><span class="p">)</span>
-<span class="c1">#Check job status</span>
-<span class="n">status</span> <span class="o">=</span> <span class="n">tj2</span><span class="o">.</span><span class="n">get_status</span><span class="p">()</span>
-<span class="k">while</span> <span class="n">status</span> <span class="o">!=</span> <span class="n">JobStatus</span><span class="o">.</span><span class="n">COMPLETE</span><span class="o">.</span><span class="n">value</span> <span class="ow">and</span> <span class="n">status</span> <span class="o">!=</span> <span class="n">JobStatus</span><span class="o">.</span><span class="n">FAILED</span><span class="o">.</span><span class="n">value</span><span class="p">:</span>
-    <span class="n">clear_output</span><span class="p">(</span><span class="n">wait</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-    <span class="n">status</span> <span class="o">=</span> <span class="n">tj2</span><span class="o">.</span><span class="n">get_status</span><span class="p">()</span>
-    <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+<div class=" highlight hl-ipython3"><pre><span></span><span class="k">def</span> <span class="nf">good_iterator_images</span><span class="p">(</span><span class="n">data_root_path</span><span class="p">):</span>
+    <span class="kn">import</span> <span class="nn">glob</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">files</span> <span class="o">=</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{}</span><span class="s2">/*.*&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">data_root_path</span><span class="p">))</span>
+    <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">files</span><span class="p">:</span>
+        <span class="k">yield</span> <span class="n">f</span>
+    
 </pre></div>
 
 </div>
@@ -12467,101 +12109,12 @@ SBrain provides <strong><em>sbrain.dataset.Transformation</em></strong> abstract
 <div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
 <div class="inner_cell">
     <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span></span><span class="c1"># get the handle to the new version after transformation </span>
-<span class="n">ds_version_transformed_300</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">version</span><span class="p">(</span> <span class="n">version_name</span> <span class="o">=</span>  <span class="n">flip_resize_300_name</span><span class="p">)</span>
-</pre></div>
-
-</div>
-</div>
-</div>
-
-</div>
-<div class="cell border-box-sizing text_cell rendered">
-<div class="prompt input_prompt">
-</div>
-<div class="inner_cell">
-<div class="text_cell_render border-box-sizing rendered_html">
-<p>Lets check the images again to see the difference when weight=128 and weight=256</p>
-
-</div>
-</div>
-</div>
-<div class="cell border-box-sizing code_cell rendered">
-<div class="input">
-<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
-<div class="inner_cell">
-    <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span></span><span class="kn">from</span> <span class="nn">matplotlib</span> <span class="k">import</span> <span class="n">pyplot</span> <span class="k">as</span> <span class="n">plt</span>
-<span class="kn">from</span> <span class="nn">skimage</span> <span class="k">import</span> <span class="n">io</span>
-<span class="o">%</span><span class="k">matplotlib</span> inline
-
-<span class="n">rows</span> <span class="o">=</span> <span class="mi">8</span>
-<span class="n">cols</span> <span class="o">=</span> <span class="mi">2</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">40</span><span class="p">,</span><span class="mi">50</span><span class="p">))</span>
-<span class="n">imgs_before</span> <span class="o">=</span> <span class="p">[</span><span class="n">img</span> <span class="k">for</span> <span class="n">img</span><span class="p">,</span><span class="n">lbl</span> <span class="ow">in</span> <span class="n">ds_version_transformed</span><span class="o">.</span><span class="n">get_iterator</span><span class="p">()</span><span class="o">.</span><span class="n">next_batch</span><span class="p">(</span><span class="mi">8</span><span class="p">)]</span>
-<span class="n">imgs_after</span> <span class="o">=</span> <span class="p">[</span><span class="n">img</span> <span class="k">for</span> <span class="n">img</span><span class="p">,</span><span class="n">lbl</span> <span class="ow">in</span> <span class="n">ds_version_transformed_300</span><span class="o">.</span><span class="n">get_iterator</span><span class="p">()</span><span class="o">.</span><span class="n">next_batch</span><span class="p">(</span><span class="mi">8</span><span class="p">)]</span> 
-<span class="n">imgs_before</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">imgs_before</span><span class="p">)</span>
-<span class="n">imgs_after</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">imgs_after</span><span class="p">)</span>
-<span class="n">idx</span> <span class="o">=</span> <span class="mi">0</span>
-<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">8</span><span class="p">):</span>
-    <span class="n">plt</span><span class="o">.</span><span class="n">subplot</span><span class="p">(</span><span class="n">rows</span><span class="p">,</span> <span class="n">cols</span><span class="p">,</span> <span class="n">idx</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
-    <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s1">&#39;before&#39;</span><span class="p">)</span>
-    <span class="n">before</span> <span class="o">=</span> <span class="n">io</span><span class="o">.</span><span class="n">imread</span><span class="p">(</span><span class="n">imgs_before</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
-    <span class="c1"># print(before.shape)</span>
-    <span class="n">plt</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">before</span><span class="p">)</span>
-    <span class="n">plt</span><span class="o">.</span><span class="n">subplot</span><span class="p">(</span><span class="n">rows</span><span class="p">,</span> <span class="n">cols</span><span class="p">,</span> <span class="n">idx</span> <span class="o">+</span> <span class="mi">2</span><span class="p">)</span>
-    <span class="n">h</span><span class="p">,</span><span class="n">w</span><span class="p">,</span><span class="n">_</span> <span class="o">=</span> <span class="n">before</span><span class="o">.</span><span class="n">shape</span>
-    <span class="n">ar</span> <span class="o">=</span> <span class="n">h</span><span class="o">/</span><span class="n">w</span>
-    <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s1">&#39;after&#39;</span><span class="p">)</span>
-    <span class="n">after</span> <span class="o">=</span> <span class="n">io</span><span class="o">.</span><span class="n">imread</span><span class="p">(</span><span class="n">imgs_after</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
-    <span class="c1"># print(before.shape)</span>
-    <span class="n">plt</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">after</span><span class="p">)</span> <span class="c1">#,aspect=ar)</span>
-    <span class="n">idx</span> <span class="o">=</span> <span class="n">idx</span> <span class="o">+</span> <span class="mi">2</span>
-</pre></div>
-
-</div>
-</div>
-</div>
-
-</div>
-<div class="cell border-box-sizing text_cell rendered">
-<div class="prompt input_prompt">
-</div>
-<div class="inner_cell">
-<div class="text_cell_render border-box-sizing rendered_html">
-<p><a id="splits"></a></p>
-<h1 id="Creating-Training/Test/Validation-Splits">Creating Training/Test/Validation Splits<a class="anchor-link" href="#Creating-Training/Test/Validation-Splits">&#182;</a></h1><p>Use <strong>_DataSetVersion.create_data<em>split()</em></strong> to create train/test/validation splits.</p>
-<p>It takes:</p>
-<ul>
-<li><strong>split_name</strong> : Name of the split being created.</li>
-<li><strong>split_percentages</strong>: An array of ints specifying the train/test/validation split percentages in the respective order.</li>
-<li><strong>author</strong>: author of the split</li>
-<li><strong>description</strong> : some description about the split</li>
-</ul>
-<p><font color="red">IMPORTANT:</font> Please make sure the DataSetVersion which is being used for split has status 'Complete'. You can see the status in the search result or DataSetVersion.status.</p>
-<p>It returns:
-    <strong><em>DataSetSplitJob</em></strong> object</p>
-<p><strong>DataSetSplitJob.get_status()</strong> can be used to check status of dataset split job</p>
-<p><strong>DataSetSplitJob.cancel()</strong> can be used to check status of dataset split job</p>
-<h4 id="NOTE:">NOTE:<a class="anchor-link" href="#NOTE:">&#182;</a></h4><p>-- with the sample dataset, creating split takes about 1-2 mins</p>
-<div align="right"><a href="#top">BackToTheTop</a></div>
-</div>
-</div>
-</div>
-<div class="cell border-box-sizing code_cell rendered">
-<div class="input">
-<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
-<div class="inner_cell">
-    <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span></span><span class="n">dataset_split_name</span> <span class="o">=</span> <span class="s2">&quot;split-70-20-10-</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">unique_id</span><span class="p">())</span>
-<span class="n">split_job</span> <span class="o">=</span> <span class="n">ds_version_transformed</span><span class="o">.</span><span class="n">create_data_split</span><span class="p">(</span><span class="n">split_name</span> <span class="o">=</span> <span class="n">dataset_split_name</span><span class="p">,</span>
-                                                 <span class="n">split_percentages</span> <span class="o">=</span> <span class="p">[</span><span class="mi">70</span><span class="p">,</span><span class="mi">20</span><span class="p">,</span><span class="mi">10</span><span class="p">],</span>
-                                                 <span class="n">description</span> <span class="o">=</span> <span class="s2">&quot;split by 70-20-10&quot;</span><span class="p">)</span>
+<div class=" highlight hl-ipython3"><pre><span></span><span class="n">job</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">retry_create</span><span class="p">(</span><span class="n">image_iterator</span><span class="o">=</span><span class="n">good_iterator_images</span><span class="p">)</span>
 
 <span class="c1">#Check job status</span>
-<span class="k">while</span> <span class="n">split_job</span><span class="o">.</span><span class="n">status</span> <span class="o">!=</span> <span class="n">JobStatus</span><span class="o">.</span><span class="n">COMPLETE</span><span class="o">.</span><span class="n">value</span> <span class="ow">and</span> <span class="n">split_job</span><span class="o">.</span><span class="n">status</span> <span class="o">!=</span> <span class="n">JobStatus</span><span class="o">.</span><span class="n">FAILED</span><span class="o">.</span><span class="n">value</span><span class="p">:</span>
+<span class="k">while</span> <span class="n">job</span><span class="o">.</span><span class="n">status</span> <span class="o">!=</span> <span class="n">JobStatus</span><span class="o">.</span><span class="n">COMPLETE</span><span class="o">.</span><span class="n">value</span> <span class="ow">and</span> <span class="n">job</span><span class="o">.</span><span class="n">status</span> <span class="o">!=</span> <span class="n">JobStatus</span><span class="o">.</span><span class="n">FAILED</span><span class="o">.</span><span class="n">value</span><span class="p">:</span>
     <span class="n">clear_output</span><span class="p">(</span><span class="n">wait</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-    <span class="n">split_job</span> <span class="o">=</span> <span class="n">split_job</span><span class="o">.</span><span class="n">get_status</span><span class="p">()</span>
+    <span class="n">job</span> <span class="o">=</span> <span class="n">job</span><span class="o">.</span><span class="n">get_status</span><span class="p">()</span>
     <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
 </pre></div>
 
@@ -12575,9 +12128,8 @@ SBrain provides <strong><em>sbrain.dataset.Transformation</em></strong> abstract
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<h4 id="DataSetSplit.create()-will-return-a-DataSetSplitJob-object">DataSetSplit.create() will return a DataSetSplitJob object<a class="anchor-link" href="#DataSetSplit.create()-will-return-a-DataSetSplitJob-object">&#182;</a></h4><p>The job object can be used to track the progress of DataSetSplit creation.</p>
-<p>job.get_dataset_split() will return a DataSetSplit object that's a handle to the new dataset split created</p>
-
+<p><a id='faulty_label_iterator'></a></p>
+<h1 id="Create-DataSet-With-Faulty-Label-Iterator">Create DataSet With Faulty Label Iterator<a class="anchor-link" href="#Create-DataSet-With-Faulty-Label-Iterator">&#182;</a></h1><div align="right"><a href="#top">BackToTheTop</a></div>
 </div>
 </div>
 </div>
@@ -12586,7 +12138,61 @@ SBrain provides <strong><em>sbrain.dataset.Transformation</em></strong> abstract
 <div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
 <div class="inner_cell">
     <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span></span><span class="n">split</span> <span class="o">=</span> <span class="n">split_job</span><span class="o">.</span><span class="n">get_dataset_split</span><span class="p">()</span>
+<div class=" highlight hl-ipython3"><pre><span></span><span class="c1"># defining iterator to get tuples (image_name, class_id) e.g. (xyz.jpeg,1)</span>
+<span class="k">def</span> <span class="nf">faulty_iterator_labels</span><span class="p">(</span><span class="n">data_root_path</span><span class="p">):</span>
+    <span class="kn">import</span> <span class="nn">glob</span>
+    <span class="n">files</span> <span class="o">=</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{}</span><span class="s2">/*.*&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">data_root_path</span><span class="p">))</span>
+    <span class="n">labels</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">classes</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s1">&#39;airplane&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+                <span class="s1">&#39;automobile&#39;</span><span class="p">:</span><span class="mi">1</span><span class="p">,</span>
+                <span class="s1">&#39;bird&#39;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>
+                <span class="s1">&#39;cat&#39;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span>
+                <span class="s1">&#39;deer&#39;</span><span class="p">:</span> <span class="mi">4</span><span class="p">,</span>
+                <span class="s1">&#39;dog&#39;</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span>
+                <span class="s1">&#39;frog&#39;</span><span class="p">:</span> <span class="mi">6</span><span class="p">,</span>
+                <span class="s1">&#39;horse&#39;</span><span class="p">:</span> <span class="mi">7</span><span class="p">,</span>
+                <span class="s1">&#39;ship&#39;</span><span class="p">:</span> <span class="mi">8</span><span class="p">,</span>
+                <span class="s1">&#39;truck&#39;</span><span class="p">:</span> <span class="mi">9</span>
+            <span class="p">}</span>
+    <span class="n">cnt</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">files</span><span class="p">:</span>
+        <span class="n">cnt</span> <span class="o">=</span> <span class="n">cnt</span><span class="o">+</span><span class="mi">1</span>
+        <span class="k">if</span> <span class="n">cnt</span> <span class="o">==</span> <span class="mi">50</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;Sample exception just for testing&quot;</span><span class="p">)</span>
+        <span class="n">img_name</span> <span class="o">=</span>  <span class="n">f</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">:][</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">lbl_str</span> <span class="o">=</span> <span class="n">img_name</span><span class="p">[</span><span class="n">img_name</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s1">&#39;_&#39;</span><span class="p">)</span><span class="o">+</span><span class="mi">1</span><span class="p">:</span><span class="n">img_name</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)]</span>
+        <span class="n">lbl_id</span> <span class="o">=</span> <span class="n">classes</span><span class="p">[</span><span class="n">lbl_str</span><span class="p">]</span>
+        <span class="k">yield</span><span class="p">(</span><span class="n">img_name</span><span class="p">,</span> <span class="n">lbl_id</span><span class="p">)</span>
+   
+</pre></div>
+
+</div>
+</div>
+</div>
+
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="n">dataset_name</span> <span class="o">=</span> <span class="s2">&quot;cifar10-small-</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">unique_id</span><span class="p">())</span>
+
+<span class="n">job</span> <span class="o">=</span> <span class="n">DataSetImageClassification</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">dataset_name</span><span class="p">)</span><span class="o">.</span><span class="n">create</span><span class="p">(</span>
+    <span class="n">description</span> <span class="o">=</span> <span class="s2">&quot;Dataset with subset of cifar 10 images&quot;</span><span class="p">,</span>
+    <span class="n">source_archive_path</span> <span class="o">=</span> <span class="s2">&quot;shared-dir/sample-notebooks/demo-data/cifar10_small&quot;</span><span class="p">,</span>
+    <span class="n">classes</span><span class="o">=</span><span class="n">classes</span><span class="p">,</span>
+    <span class="n">collection_date</span><span class="o">=</span><span class="s2">&quot;07-25-2018&quot;</span><span class="p">,</span>
+    <span class="n">image_iterator</span><span class="o">=</span><span class="n">good_iterator_images</span><span class="p">,</span>
+    <span class="n">label_iterator</span><span class="o">=</span><span class="n">faulty_iterator_labels</span>
+<span class="p">)</span>
+
+<span class="c1">#check job status</span>
+<span class="k">while</span> <span class="n">job</span><span class="o">.</span><span class="n">status</span> <span class="o">!=</span> <span class="n">JobStatus</span><span class="o">.</span><span class="n">COMPLETE</span><span class="o">.</span><span class="n">value</span> <span class="ow">and</span> <span class="n">job</span><span class="o">.</span><span class="n">status</span> <span class="o">!=</span> <span class="n">JobStatus</span><span class="o">.</span><span class="n">FAILED</span><span class="o">.</span><span class="n">value</span><span class="p">:</span>
+    <span class="n">clear_output</span><span class="p">(</span><span class="n">wait</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">job</span> <span class="o">=</span> <span class="n">job</span><span class="o">.</span><span class="n">get_status</span><span class="p">()</span>
+    <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
 </pre></div>
 
 </div>
@@ -12599,15 +12205,8 @@ SBrain provides <strong><em>sbrain.dataset.Transformation</em></strong> abstract
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<p><a id='search_splits'></a></p>
-<h1 id="Searching-And-Retrieving-DataSet-Splits">Searching And Retrieving DataSet Splits<a class="anchor-link" href="#Searching-And-Retrieving-DataSet-Splits">&#182;</a></h1><p><strong>DataSetVersion.search_splits()</strong> can be used to search DataSetSplits created from that particular DataSetVersion.
-Args:</p>
-<ul>
-<li><strong>split_name</strong>: name of the split.</li>
-<li><strong>split_author</strong> : author of the split.</li>
-<li><strong>split_description</strong> : description of the split.</li>
-</ul>
-<p><strong>DataSetVersion.split()</strong> which takes split_name as an argument can be used to retrieve <strong>DataSetSplit</strong> with exact name.</p>
+<p><a id='fix_label_iterator'></a></p>
+<h2 id="Using-Retry()-API-To-Fix-Faulty-Label-Iterator">Using Retry() API To Fix Faulty Label Iterator<a class="anchor-link" href="#Using-Retry()-API-To-Fix-Faulty-Label-Iterator">&#182;</a></h2><p>Lets retry creation using an label_iterator that is fixed now.</p>
 <div align="right"><a href="#top">BackToTheTop</a></div>
 </div>
 </div>
@@ -12617,8 +12216,9 @@ Args:</p>
 <div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
 <div class="inner_cell">
     <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span></span><span class="c1"># list all splits for a particular dataset version which match the search criteria</span>
-<span class="n">ds_version_transformed</span><span class="o">.</span><span class="n">search_splits</span><span class="p">(</span><span class="n">split_author</span> <span class="o">=</span> <span class="n">user_name</span><span class="p">)</span>
+<div class=" highlight hl-ipython3"><pre><span></span><span class="n">DataSetImageClassification</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">dataset_name</span><span class="p">)</span>
+<span class="n">ds</span> <span class="o">=</span> <span class="n">DataSetImageClassification</span><span class="o">.</span><span class="n">lookup</span><span class="p">(</span><span class="n">dataset_name</span><span class="p">)</span>
+<span class="n">ds</span><span class="o">.</span><span class="n">search_versions</span><span class="p">(</span><span class="n">version_name</span><span class="o">=</span><span class="s2">&quot;v1&quot;</span><span class="p">)</span>
 </pre></div>
 
 </div>
@@ -12631,8 +12231,27 @@ Args:</p>
 <div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
 <div class="inner_cell">
     <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span></span><span class="c1"># get a split object for a particular dataset version which can be used in training models</span>
-<span class="n">split_obj</span> <span class="o">=</span> <span class="n">ds_version_transformed</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">split_name</span> <span class="o">=</span> <span class="n">dataset_split_name</span><span class="p">)</span>
+<div class=" highlight hl-ipython3"><pre><span></span><span class="k">def</span> <span class="nf">good_iterator_labels</span><span class="p">(</span><span class="n">data_root_path</span><span class="p">):</span>
+    <span class="kn">import</span> <span class="nn">glob</span>
+    <span class="n">files</span> <span class="o">=</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{}</span><span class="s2">/*.*&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">data_root_path</span><span class="p">))</span>
+    <span class="n">labels</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">classes</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s1">&#39;airplane&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+                <span class="s1">&#39;automobile&#39;</span><span class="p">:</span><span class="mi">1</span><span class="p">,</span>
+                <span class="s1">&#39;bird&#39;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>
+                <span class="s1">&#39;cat&#39;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span>
+                <span class="s1">&#39;deer&#39;</span><span class="p">:</span> <span class="mi">4</span><span class="p">,</span>
+                <span class="s1">&#39;dog&#39;</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span>
+                <span class="s1">&#39;frog&#39;</span><span class="p">:</span> <span class="mi">6</span><span class="p">,</span>
+                <span class="s1">&#39;horse&#39;</span><span class="p">:</span> <span class="mi">7</span><span class="p">,</span>
+                <span class="s1">&#39;ship&#39;</span><span class="p">:</span> <span class="mi">8</span><span class="p">,</span>
+                <span class="s1">&#39;truck&#39;</span><span class="p">:</span> <span class="mi">9</span>
+            <span class="p">}</span>
+    <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">files</span><span class="p">:</span>
+        <span class="n">img_name</span> <span class="o">=</span>  <span class="n">f</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">:][</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">lbl_str</span> <span class="o">=</span> <span class="n">img_name</span><span class="p">[</span><span class="n">img_name</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s1">&#39;_&#39;</span><span class="p">)</span><span class="o">+</span><span class="mi">1</span><span class="p">:</span><span class="n">img_name</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)]</span>
+        <span class="n">lbl_id</span> <span class="o">=</span> <span class="n">classes</span><span class="p">[</span><span class="n">lbl_str</span><span class="p">]</span>
+        <span class="k">yield</span><span class="p">(</span><span class="n">img_name</span><span class="p">,</span> <span class="n">lbl_id</span><span class="p">)</span>
 </pre></div>
 
 </div>
@@ -12640,15 +12259,37 @@ Args:</p>
 </div>
 
 </div>
-<div class="cell border-box-sizing text_cell rendered">
-<div class="prompt input_prompt">
-</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
 <div class="inner_cell">
-<div class="text_cell_render border-box-sizing rendered_html">
-<p>NOTE: <strong><em>DataSetSplit</em></strong> object is used for training models</p>
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="n">job</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">retry_create</span><span class="p">(</span><span class="n">label_iterator</span><span class="o">=</span><span class="n">good_iterator_labels</span><span class="p">)</span>
+
+<span class="c1"># check job status</span>
+<span class="k">while</span> <span class="n">job</span><span class="o">.</span><span class="n">status</span> <span class="o">!=</span> <span class="n">JobStatus</span><span class="o">.</span><span class="n">COMPLETE</span><span class="o">.</span><span class="n">value</span> <span class="ow">and</span> <span class="n">job</span><span class="o">.</span><span class="n">status</span> <span class="o">!=</span> <span class="n">JobStatus</span><span class="o">.</span><span class="n">FAILED</span><span class="o">.</span><span class="n">value</span><span class="p">:</span>
+    <span class="n">clear_output</span><span class="p">(</span><span class="n">wait</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">job</span> <span class="o">=</span> <span class="n">job</span><span class="o">.</span><span class="n">get_status</span><span class="p">()</span>
+    <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+</pre></div>
 
 </div>
 </div>
+</div>
+
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="n">DataSetImageClassification</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">dataset_name</span><span class="p">)</span>
+</pre></div>
+
+</div>
+</div>
+</div>
+
 </div>
 <div class="cell border-box-sizing text_cell rendered">
 <div class="prompt input_prompt">
