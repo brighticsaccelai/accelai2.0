@@ -2,7 +2,7 @@
 <html>
 <head><meta charset="utf-8" />
 
-<title>Reference_CIFAR10-OddClassesTraining</title>
+<title>ModelTrainingWithInputFunctionAndInference</title>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.1.10/require.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
@@ -13116,18 +13116,15 @@ div#notebook {
 <div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
 </div><div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<h1 id="Resnet-model-training-on-CIFAR10-odd-numbered-classes-on-SBrain"><div class="alert alert-block alert-info" style="border-width:4px">Resnet model training on CIFAR10 odd numbered classes on SBrain</div><a class="anchor-link" href="#Resnet-model-training-on-CIFAR10-odd-numbered-classes-on-SBrain">&#182;</a></h1>
+<h1 id="SBrain-Model-Training-Using-Input-Function-Then-Inference-Tutorial-"><div class="alert alert-block alert-info" style="border-width:4px">SBrain Model Training Using Input Function Then Inference Tutorial </div><a class="anchor-link" href="#SBrain-Model-Training-Using-Input-Function-Then-Inference-Tutorial-">&#182;</a></h1>
 </div>
 </div>
 </div>
 <div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
 </div><div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<h1 id="Introduction">Introduction<a class="anchor-link" href="#Introduction">&#182;</a></h1><p>THIS NOTEBOOK CAN TAKE LONG TIME TO RUN. SO IT IS MAINLY FOR REFERENCE. IT MAY TAKE SOME TIME IF YOU TRY TO RUN IT.</p>
-<p>In this notebook, we will build a Resnet model and train it on CIFAR10 dataset, but only on odd numbered classes. When we do transfer learning in <a href="2_TransferLearning.ipynb">TransferLearning Notebook</a>, this model will serve as the model that we transfer from.</p>
-<p>Below, we define an input_function to be used in SBrain. More details on input_function is in <a href="2_TransferLearning.ipynb">TransferLearning Notebook</a>.
-In this function, we download the CIFAR-10 data, load TFRecordDataset from it and filter it for only the odd numbered classes.</p>
-
+<h3 id="Lets-try-it-out">Lets try it out<a class="anchor-link" href="#Lets-try-it-out">&#182;</a></h3><p>Before we begin, it would be good to copy this notebook and rename it with your name at the end, since we don't want multiple people editing the same notebook at the same time, causing reloading issues.</p>
+<h3 id="NOTE-:-Please-try-out-the-Experiment-Management-Notebook-before-this-tutorial.">NOTE : Please try out the <a href="../experiment-management/1_SbrainExperimentManagement.ipynb">Experiment Management Notebook</a> before this tutorial.<a class="anchor-link" href="#NOTE-:-Please-try-out-the-Experiment-Management-Notebook-before-this-tutorial.">&#182;</a></h3>
 </div>
 </div>
 </div>
@@ -13138,9 +13135,49 @@ In this function, we download the CIFAR-10 data, load TFRecordDataset from it an
     <div class="input_area">
 <div class=" highlight hl-ipython3"><pre><span></span><span class="kn">from</span> <span class="nn">sbrain.learning.experiment</span> <span class="k">import</span> <span class="o">*</span>
 <span class="kn">from</span> <span class="nn">sbrain.dataset.dataset</span> <span class="k">import</span> <span class="o">*</span>
+</pre></div>
 
-<span class="k">def</span> <span class="nf">only_odd_classes_input_function</span><span class="p">(</span><span class="n">mode</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
-    <span class="kn">import</span> <span class="nn">os</span>
+    </div>
+</div>
+</div>
+
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="n">user_name</span> <span class="o">=</span> <span class="s2">&quot;admin&quot;</span>
+
+<span class="k">def</span> <span class="nf">uniquify</span><span class="p">(</span><span class="n">name</span><span class="p">):</span>
+    <span class="kn">import</span> <span class="nn">time</span>
+    <span class="n">should_uniquify</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="k">if</span> <span class="n">should_uniquify</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">name</span> <span class="o">+</span> <span class="n">user_name</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">())</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">,</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">name</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
+
+</div>
+<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+</div><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<h3 id="Training-Model-Using-Input-Function">Training Model Using Input Function<a class="anchor-link" href="#Training-Model-Using-Input-Function">&#182;</a></h3><p>We are going to use the cifar10 dataset. Its already split into train,eval,predict subsets. Each of the folder contains images in .png format.</p>
+
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="k">def</span> <span class="nf">input_function</span><span class="p">(</span><span class="n">mode</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
+    <span class="kn">import</span> <span class="nn">os</span><span class="o">,</span><span class="nn">glob</span>
     <span class="kn">import</span> <span class="nn">tensorflow</span> <span class="k">as</span> <span class="nn">tf</span>
     <span class="kn">import</span> <span class="nn">sys</span>
     <span class="kn">import</span> <span class="nn">tarfile</span>
@@ -13151,16 +13188,7 @@ In this function, we download the CIFAR-10 data, load TFRecordDataset from it an
     <span class="n">WIDTH</span> <span class="o">=</span> <span class="mi">32</span>
     <span class="n">DEPTH</span> <span class="o">=</span> <span class="mi">3</span>
 
-    <span class="n">CIFAR_FILENAME</span> <span class="o">=</span> <span class="s1">&#39;cifar-10-python.tar.gz&#39;</span>
-    <span class="n">CIFAR_DOWNLOAD_URL</span> <span class="o">=</span> <span class="s1">&#39;https://www.cs.toronto.edu/~kriz/&#39;</span> <span class="o">+</span> <span class="n">CIFAR_FILENAME</span>
-    <span class="n">CIFAR_LOCAL_FOLDER</span> <span class="o">=</span> <span class="s1">&#39;cifar-10-batches-py&#39;</span>
-
-    <span class="k">def</span> <span class="nf">download_and_extract</span><span class="p">(</span><span class="n">data_dir</span><span class="p">):</span>
-        <span class="c1"># download CIFAR-10 if not already downloaded.</span>
-        <span class="n">tf</span><span class="o">.</span><span class="n">contrib</span><span class="o">.</span><span class="n">learn</span><span class="o">.</span><span class="n">datasets</span><span class="o">.</span><span class="n">base</span><span class="o">.</span><span class="n">maybe_download</span><span class="p">(</span><span class="n">CIFAR_FILENAME</span><span class="p">,</span> <span class="n">data_dir</span><span class="p">,</span>
-                                                      <span class="n">CIFAR_DOWNLOAD_URL</span><span class="p">)</span>
-        <span class="n">tarfile</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">data_dir</span><span class="p">,</span> <span class="n">CIFAR_FILENAME</span><span class="p">),</span>
-                     <span class="s1">&#39;r:gz&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">extractall</span><span class="p">(</span><span class="n">data_dir</span><span class="p">)</span>
+    <span class="n">CIFAR_DATASET_PATH_IN_NFS</span><span class="o">=</span><span class="s2">&quot;/workspace/shared-dir/sample-notebooks/demo-data/cifar10-input-function&quot;</span>
 
     <span class="k">def</span> <span class="nf">_int64_feature</span><span class="p">(</span><span class="n">value</span><span class="p">):</span>
         <span class="k">return</span> <span class="n">tf</span><span class="o">.</span><span class="n">train</span><span class="o">.</span><span class="n">Feature</span><span class="p">(</span><span class="n">int64_list</span><span class="o">=</span><span class="n">tf</span><span class="o">.</span><span class="n">train</span><span class="o">.</span><span class="n">Int64List</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="p">[</span><span class="n">value</span><span class="p">]))</span>
@@ -13168,141 +13196,67 @@ In this function, we download the CIFAR-10 data, load TFRecordDataset from it an
     <span class="k">def</span> <span class="nf">_bytes_feature</span><span class="p">(</span><span class="n">value</span><span class="p">):</span>
         <span class="k">return</span> <span class="n">tf</span><span class="o">.</span><span class="n">train</span><span class="o">.</span><span class="n">Feature</span><span class="p">(</span><span class="n">bytes_list</span><span class="o">=</span><span class="n">tf</span><span class="o">.</span><span class="n">train</span><span class="o">.</span><span class="n">BytesList</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="p">[</span><span class="n">value</span><span class="p">]))</span>
 
-    <span class="k">def</span> <span class="nf">_get_file_names</span><span class="p">():</span>
-        <span class="sd">&quot;&quot;&quot;Returns the file names expected to exist in the input_dir.&quot;&quot;&quot;</span>
-        <span class="n">file_names</span> <span class="o">=</span> <span class="p">{}</span>
-        <span class="n">file_names</span><span class="p">[</span><span class="s1">&#39;train&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;data_batch_</span><span class="si">%d</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">i</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">5</span><span class="p">)]</span>
-        <span class="n">file_names</span><span class="p">[</span><span class="s1">&#39;validation&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;data_batch_5&#39;</span><span class="p">]</span>
-        <span class="n">file_names</span><span class="p">[</span><span class="s1">&#39;eval&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;test_batch&#39;</span><span class="p">]</span>
-        <span class="k">return</span> <span class="n">file_names</span>
-
-    <span class="k">def</span> <span class="nf">read_pickle_from_file</span><span class="p">(</span><span class="n">filename</span><span class="p">):</span>
-        <span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">gfile</span><span class="o">.</span><span class="n">Open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
-            <span class="k">if</span> <span class="n">sys</span><span class="o">.</span><span class="n">version_info</span> <span class="o">&gt;=</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">0</span><span class="p">):</span>
-                <span class="n">data_dict</span> <span class="o">=</span> <span class="n">pickle</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s1">&#39;bytes&#39;</span><span class="p">)</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">data_dict</span> <span class="o">=</span> <span class="n">pickle</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">data_dict</span>
-
-    <span class="k">def</span> <span class="nf">convert_to_tfrecord</span><span class="p">(</span><span class="n">input_files</span><span class="p">,</span> <span class="n">output_file</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Converts a file to TFRecords.&quot;&quot;&quot;</span>
-        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Generating </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">output_file</span><span class="p">)</span>
-        <span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">python_io</span><span class="o">.</span><span class="n">TFRecordWriter</span><span class="p">(</span><span class="n">output_file</span><span class="p">)</span> <span class="k">as</span> <span class="n">record_writer</span><span class="p">:</span>
-            <span class="k">for</span> <span class="n">input_file</span> <span class="ow">in</span> <span class="n">input_files</span><span class="p">:</span>
-                <span class="n">data_dict</span> <span class="o">=</span> <span class="n">read_pickle_from_file</span><span class="p">(</span><span class="n">input_file</span><span class="p">)</span>
-                <span class="n">data</span> <span class="o">=</span> <span class="n">data_dict</span><span class="p">[</span><span class="sa">b</span><span class="s1">&#39;data&#39;</span><span class="p">]</span>
-                <span class="n">labels</span> <span class="o">=</span> <span class="n">data_dict</span><span class="p">[</span><span class="sa">b</span><span class="s1">&#39;labels&#39;</span><span class="p">]</span>
-                <span class="n">num_entries_in_batch</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">labels</span><span class="p">)</span>
-                <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_entries_in_batch</span><span class="p">):</span>
-                    <span class="n">example</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">train</span><span class="o">.</span><span class="n">Example</span><span class="p">(</span><span class="n">features</span><span class="o">=</span><span class="n">tf</span><span class="o">.</span><span class="n">train</span><span class="o">.</span><span class="n">Features</span><span class="p">(</span>
-                        <span class="n">feature</span><span class="o">=</span><span class="p">{</span>
-                            <span class="s1">&#39;image&#39;</span><span class="p">:</span> <span class="n">_bytes_feature</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">tobytes</span><span class="p">()),</span>
-                            <span class="s1">&#39;label&#39;</span><span class="p">:</span> <span class="n">_int64_feature</span><span class="p">(</span><span class="n">labels</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
-                        <span class="p">}))</span>
-                    <span class="n">record_writer</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">example</span><span class="o">.</span><span class="n">SerializeToString</span><span class="p">())</span>
-
-    <span class="k">def</span> <span class="nf">setup_cifar10_data</span><span class="p">(</span><span class="n">data_dir</span><span class="p">):</span>
-        <span class="n">train_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">data_dir</span><span class="p">,</span> <span class="s1">&#39;train.tfrecords&#39;</span><span class="p">)</span>
-        <span class="n">validation_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">data_dir</span><span class="p">,</span> <span class="s1">&#39;validation.tfrecords&#39;</span><span class="p">)</span>
-        <span class="n">eval_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">data_dir</span><span class="p">,</span> <span class="s1">&#39;eval.tfrecords&#39;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">train_dir</span><span class="p">)</span> <span class="ow">and</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">validation_dir</span><span class="p">)</span> <span class="ow">and</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">eval_dir</span><span class="p">):</span>
-            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Data already present.&quot;</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Download from </span><span class="si">{}</span><span class="s1"> and extract. Wait for download complete message..&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">CIFAR_DOWNLOAD_URL</span><span class="p">))</span>
-            <span class="n">download_and_extract</span><span class="p">(</span><span class="n">data_dir</span><span class="p">)</span>
-            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Download completed&#39;</span><span class="p">)</span>
-            <span class="n">file_names</span> <span class="o">=</span> <span class="n">_get_file_names</span><span class="p">()</span>
-            <span class="n">input_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">data_dir</span><span class="p">,</span> <span class="n">CIFAR_LOCAL_FOLDER</span><span class="p">)</span>
-            <span class="k">for</span> <span class="n">mode</span><span class="p">,</span> <span class="n">files</span> <span class="ow">in</span> <span class="n">file_names</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-                <span class="n">input_files</span> <span class="o">=</span> <span class="p">[</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">input_dir</span><span class="p">,</span> <span class="n">f</span><span class="p">)</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">files</span><span class="p">]</span>
-                <span class="n">output_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">data_dir</span><span class="p">,</span> <span class="n">mode</span> <span class="o">+</span> <span class="s1">&#39;.tfrecords&#39;</span><span class="p">)</span>
-                <span class="k">try</span><span class="p">:</span>
-                    <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">output_file</span><span class="p">)</span>
-                <span class="k">except</span> <span class="ne">OSError</span><span class="p">:</span>
-                    <span class="k">pass</span>
-                <span class="c1"># Convert to tf.train.Example and write the to TFRecords.</span>
-                <span class="n">convert_to_tfrecord</span><span class="p">(</span><span class="n">input_files</span><span class="p">,</span> <span class="n">output_file</span><span class="p">)</span>
-            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Done!&#39;</span><span class="p">)</span>
-
     <span class="k">class</span> <span class="nc">Cifar10DataSet</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Cifar10 data set.</span>
 <span class="sd">        Described by http://www.cs.toronto.edu/~kriz/cifar.html.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
 
-        <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data_dir</span><span class="p">,</span> <span class="n">subset</span><span class="o">=</span><span class="s1">&#39;train&#39;</span><span class="p">,</span> <span class="n">use_distortion</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data_dir</span><span class="p">,</span> <span class="n">subset</span><span class="o">=</span><span class="s1">&#39;train&#39;</span><span class="p">):</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">data_dir</span> <span class="o">=</span> <span class="n">data_dir</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">subset</span> <span class="o">=</span> <span class="n">subset</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">use_distortion</span> <span class="o">=</span> <span class="n">use_distortion</span>
 
         <span class="k">def</span> <span class="nf">get_filenames</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">subset</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;train&#39;</span><span class="p">,</span> <span class="s1">&#39;validation&#39;</span><span class="p">,</span> <span class="s1">&#39;eval&#39;</span><span class="p">]:</span>
-                <span class="k">return</span> <span class="p">[</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data_dir</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">subset</span> <span class="o">+</span> <span class="s1">&#39;.tfrecords&#39;</span><span class="p">)]</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">subset</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;train&#39;</span><span class="p">,</span> <span class="s1">&#39;eval&#39;</span><span class="p">,</span> <span class="s1">&#39;predict&#39;</span><span class="p">]:</span>
+                <span class="n">path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">CIFAR_DATASET_PATH_IN_NFS</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">subset</span><span class="p">)</span>
+                <span class="n">files</span> <span class="o">=</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{}</span><span class="s2">/*.png&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">path</span><span class="p">))</span>
+                <span class="k">return</span> <span class="n">files</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Invalid data subset &quot;</span><span class="si">%s</span><span class="s1">&quot;&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">subset</span><span class="p">)</span>
-
-        <span class="k">def</span> <span class="nf">parser</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">serialized_example</span><span class="p">):</span>
-            <span class="sd">&quot;&quot;&quot;Parses a single tf.Example into image and label tensors.&quot;&quot;&quot;</span>
-            <span class="c1"># Dimensions of the images in the CIFAR-10 dataset.</span>
-            <span class="c1"># See http://www.cs.toronto.edu/~kriz/cifar.html for a description of the</span>
-            <span class="c1"># input format.</span>
-            <span class="n">features</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">parse_single_example</span><span class="p">(</span>
-                <span class="n">serialized_example</span><span class="p">,</span>
-                <span class="n">features</span><span class="o">=</span><span class="p">{</span>
-                    <span class="s1">&#39;image&#39;</span><span class="p">:</span> <span class="n">tf</span><span class="o">.</span><span class="n">FixedLenFeature</span><span class="p">([],</span> <span class="n">tf</span><span class="o">.</span><span class="n">string</span><span class="p">),</span>
-                    <span class="s1">&#39;label&#39;</span><span class="p">:</span> <span class="n">tf</span><span class="o">.</span><span class="n">FixedLenFeature</span><span class="p">([],</span> <span class="n">tf</span><span class="o">.</span><span class="n">int64</span><span class="p">),</span>
-                <span class="p">})</span>
-            <span class="n">image</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">decode_raw</span><span class="p">(</span><span class="n">features</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">],</span> <span class="n">tf</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>
-            <span class="n">image</span><span class="o">.</span><span class="n">set_shape</span><span class="p">([</span><span class="n">DEPTH</span> <span class="o">*</span> <span class="n">HEIGHT</span> <span class="o">*</span> <span class="n">WIDTH</span><span class="p">])</span>
-
-            <span class="c1"># Reshape from [depth * height * width] to [depth, height, width].</span>
-            <span class="n">image</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span>
-                <span class="n">tf</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="p">[</span><span class="n">DEPTH</span><span class="p">,</span> <span class="n">HEIGHT</span><span class="p">,</span> <span class="n">WIDTH</span><span class="p">]),</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">]),</span>
-                <span class="n">tf</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
-            <span class="n">label</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">features</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">],</span> <span class="n">tf</span><span class="o">.</span><span class="n">int32</span><span class="p">)</span>
-
-            <span class="c1"># Custom preprocessing.</span>
-            <span class="n">image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">preprocess</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
-
+    
+        <span class="k">def</span> <span class="nf">parser</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="p">,</span> <span class="n">label</span><span class="p">):</span>
+            <span class="n">image_string</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">read_file</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+            <span class="n">image_decoded</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">decode_png</span><span class="p">(</span><span class="n">image_string</span><span class="p">,</span> <span class="n">channels</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+            <span class="n">image</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">image_decoded</span><span class="p">,</span> <span class="n">tf</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+            <span class="n">label</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">label</span><span class="p">,</span> <span class="n">tf</span><span class="o">.</span><span class="n">int32</span><span class="p">)</span>
             <span class="k">return</span> <span class="p">({</span><span class="s2">&quot;data&quot;</span><span class="p">:</span> <span class="n">image</span><span class="p">},</span> <span class="n">label</span><span class="p">)</span>
 
-        <span class="k">def</span> <span class="nf">adjust_labels</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">label</span><span class="p">):</span>
-            <span class="k">return</span> <span class="n">data</span><span class="p">,</span> <span class="n">tf</span><span class="o">.</span><span class="n">floordiv</span><span class="p">(</span><span class="n">label</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
-
-        <span class="k">def</span> <span class="nf">filter_fun</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">label</span><span class="p">):</span>
-            <span class="k">return</span> <span class="n">tf</span><span class="o">.</span><span class="n">equal</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">mod</span><span class="p">(</span><span class="n">label</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span> <span class="n">CLASS_INDEX_MOD</span><span class="p">)</span>
-
+        
         <span class="k">def</span> <span class="nf">get_dataset</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
             <span class="sd">&quot;&quot;&quot;Read the images and labels from &#39;filenames&#39;.&quot;&quot;&quot;</span>
             <span class="n">filenames</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_filenames</span><span class="p">()</span>
+            <span class="n">labels</span> <span class="o">=</span> <span class="p">[]</span> 
+            <span class="n">classes</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s1">&#39;airplane&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+                <span class="s1">&#39;automobile&#39;</span><span class="p">:</span><span class="mi">1</span><span class="p">,</span>
+                <span class="s1">&#39;bird&#39;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>
+                <span class="s1">&#39;cat&#39;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span>
+                <span class="s1">&#39;deer&#39;</span><span class="p">:</span> <span class="mi">4</span><span class="p">,</span>
+                <span class="s1">&#39;dog&#39;</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span>
+                <span class="s1">&#39;frog&#39;</span><span class="p">:</span> <span class="mi">6</span><span class="p">,</span>
+                <span class="s1">&#39;horse&#39;</span><span class="p">:</span> <span class="mi">7</span><span class="p">,</span>
+                <span class="s1">&#39;ship&#39;</span><span class="p">:</span> <span class="mi">8</span><span class="p">,</span>
+                <span class="s1">&#39;truck&#39;</span><span class="p">:</span> <span class="mi">9</span>
+            <span class="p">}</span>
+            
+            <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">filenames</span><span class="p">:</span>
+                <span class="n">img_name</span> <span class="o">=</span>  <span class="n">f</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">:][</span><span class="mi">0</span><span class="p">]</span>
+                <span class="n">lbl_str</span> <span class="o">=</span> <span class="n">img_name</span><span class="p">[</span><span class="n">img_name</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s1">&#39;_&#39;</span><span class="p">)</span><span class="o">+</span><span class="mi">1</span><span class="p">:</span><span class="n">img_name</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)]</span>
+                <span class="n">lbl_id</span> <span class="o">=</span> <span class="n">classes</span><span class="p">[</span><span class="n">lbl_str</span><span class="p">]</span>
+                <span class="n">labels</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">lbl_id</span><span class="p">)</span>
 
-            <span class="n">dataset</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">TFRecordDataset</span><span class="p">(</span><span class="n">filenames</span><span class="p">)</span>
-
-            <span class="c1"># Parse records.</span>
-            <span class="n">dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">parser</span><span class="p">)</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">filter_fun</span><span class="p">)</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">adjust_labels</span><span class="p">)</span>
+            <span class="n">dataset</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">Dataset</span><span class="o">.</span><span class="n">from_tensor_slices</span><span class="p">((</span><span class="n">filenames</span><span class="p">,</span> <span class="n">labels</span><span class="p">))</span>
+            <span class="n">dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">parser</span><span class="p">)</span>
             <span class="k">return</span> <span class="n">dataset</span>
 
-        <span class="k">def</span> <span class="nf">preprocess</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">image</span><span class="p">):</span>
-            <span class="sd">&quot;&quot;&quot;Preprocess a single image in [height, width, depth] layout.&quot;&quot;&quot;</span>
-            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">subset</span> <span class="o">==</span> <span class="s1">&#39;train&#39;</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">use_distortion</span><span class="p">:</span>
-                <span class="c1"># Pad 4 pixels on each dimension of feature map, done in mini-batch</span>
-                <span class="n">image</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">resize_image_with_crop_or_pad</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="mi">40</span><span class="p">,</span> <span class="mi">40</span><span class="p">)</span>
-                <span class="n">image</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">random_crop</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="p">[</span><span class="n">HEIGHT</span><span class="p">,</span> <span class="n">WIDTH</span><span class="p">,</span> <span class="n">DEPTH</span><span class="p">])</span>
-                <span class="n">image</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">random_flip_left_right</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
-            <span class="k">return</span> <span class="n">image</span>
-
-    <span class="n">use_distortion</span> <span class="o">=</span> <span class="kc">False</span>
     <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="n">tf</span><span class="o">.</span><span class="n">estimator</span><span class="o">.</span><span class="n">ModeKeys</span><span class="o">.</span><span class="n">TRAIN</span><span class="p">:</span>
         <span class="n">subset</span> <span class="o">=</span> <span class="s1">&#39;train&#39;</span>
-        <span class="n">use_distortion</span> <span class="o">=</span> <span class="kc">True</span>
     <span class="k">elif</span> <span class="n">mode</span> <span class="o">==</span> <span class="n">tf</span><span class="o">.</span><span class="n">estimator</span><span class="o">.</span><span class="n">ModeKeys</span><span class="o">.</span><span class="n">EVAL</span><span class="p">:</span>
-        <span class="n">subset</span> <span class="o">=</span> <span class="s1">&#39;validation&#39;</span>
-    <span class="k">else</span><span class="p">:</span>
         <span class="n">subset</span> <span class="o">=</span> <span class="s1">&#39;eval&#39;</span>
-    <span class="n">data_dir</span> <span class="o">=</span> <span class="s2">&quot;/workspace/shared-dir/sample-notebooks/demo-data/learning/OddClasses/&quot;</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">subset</span> <span class="o">=</span> <span class="s1">&#39;predict&#39;</span>
+   
 
-    <span class="n">setup_cifar10_data</span><span class="p">(</span><span class="n">data_dir</span><span class="p">)</span>
-
-    <span class="n">dataset</span> <span class="o">=</span> <span class="n">Cifar10DataSet</span><span class="p">(</span><span class="n">data_dir</span><span class="p">,</span> <span class="n">subset</span><span class="p">,</span> <span class="n">use_distortion</span><span class="p">)</span><span class="o">.</span><span class="n">get_dataset</span><span class="p">()</span>
+    <span class="n">dataset</span> <span class="o">=</span> <span class="n">Cifar10DataSet</span><span class="p">(</span><span class="n">CIFAR_DATASET_PATH_IN_NFS</span><span class="p">,</span> <span class="n">subset</span><span class="p">)</span><span class="o">.</span><span class="n">get_dataset</span><span class="p">()</span>
 
     <span class="n">dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">shuffle</span><span class="p">(</span><span class="mi">1000</span><span class="p">)</span><span class="o">.</span><span class="n">batch</span><span class="p">(</span><span class="n">batch_size</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="n">tf</span><span class="o">.</span><span class="n">estimator</span><span class="o">.</span><span class="n">ModeKeys</span><span class="o">.</span><span class="n">TRAIN</span><span class="p">:</span>
@@ -13315,24 +13269,16 @@ In this function, we download the CIFAR-10 data, load TFRecordDataset from it an
 </div>
 
 </div>
-<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
-</div><div class="inner_cell">
-<div class="text_cell_render border-box-sizing rendered_html">
-<p>Here we define, a model function where we build a RESNET model to be trained on the above dataset.</p>
-
-</div>
-</div>
-</div>
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
 <div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
 <div class="inner_cell">
     <div class="input_area">
 <div class=" highlight hl-ipython3"><pre><span></span><span class="k">def</span> <span class="nf">cifar_model_function</span><span class="p">(</span><span class="n">features</span><span class="p">,</span> <span class="n">labels</span><span class="p">,</span> <span class="n">mode</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
+    <span class="c1">## Importing relevant packages</span>
     <span class="kn">import</span> <span class="nn">tensorflow</span> <span class="k">as</span> <span class="nn">tf</span>
     <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
-    <span class="kn">import</span> <span class="nn">os</span>
-    <span class="c1">######################################## Resnet model #########################################</span>
+    <span class="c1">########## Defining ResNet structure as a class. #############</span>
 
     <span class="k">class</span> <span class="nc">ResNet</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;ResNet model.&quot;&quot;&quot;</span>
@@ -13453,9 +13399,9 @@ In this function, we download the CIFAR-10 data, load TFRecordDataset from it an
             <span class="n">tf</span><span class="o">.</span><span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;image after unit </span><span class="si">%s</span><span class="s1">: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">name_scope</span><span class="p">,</span> <span class="n">x</span><span class="o">.</span><span class="n">get_shape</span><span class="p">())</span>
             <span class="k">return</span> <span class="n">x</span>
 
-    <span class="c1">####################################### end Resnet base model definition ######################################</span>
+    <span class="c1">########## End ResNet class #############</span>
 
-    <span class="c1">####################################### start cifar resnet subclassing ########################################</span>
+    <span class="c1">####### Subclassing ResNet specific to CIFAR-10 ###########</span>
 
     <span class="k">class</span> <span class="nc">ResNetCifar10</span><span class="p">(</span><span class="n">ResNet</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Cifar10 model with ResNetV1 and basic residual block.&quot;&quot;&quot;</span>
@@ -13474,7 +13420,7 @@ In this function, we download the CIFAR-10 data, load TFRecordDataset from it an
             <span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">n</span> <span class="o">=</span> <span class="p">(</span><span class="n">num_layers</span> <span class="o">-</span> <span class="mi">2</span><span class="p">)</span> <span class="o">//</span> <span class="mi">6</span>
             <span class="c1"># Add one in case label starts with 1. No impact if label starts with 0.</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">num_classes</span> <span class="o">=</span> <span class="mi">5</span> <span class="o">+</span> <span class="mi">1</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">num_classes</span> <span class="o">=</span> <span class="mi">10</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">filters</span> <span class="o">=</span> <span class="p">[</span><span class="mi">16</span><span class="p">,</span> <span class="mi">16</span><span class="p">,</span> <span class="mi">32</span><span class="p">,</span> <span class="mi">64</span><span class="p">]</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">strides</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span>
 
@@ -13514,18 +13460,22 @@ In this function, we download the CIFAR-10 data, load TFRecordDataset from it an
             <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fully_connected</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_classes</span><span class="p">)</span>
 
             <span class="k">return</span> <span class="n">x</span>
-    <span class="c1">####################################### end cifar resnet subclassing ########################################</span>
+    <span class="c1">####### End ResNetCifar10 class ###########</span>
 
-    <span class="c1">####################################### start loss etc definitions ##########################################</span>
+    <span class="c1">######### Here we define all the hyperparameters, network, loss, optimzier and training operations ##################</span>
 
+    <span class="c1">## Hyperparams</span>
     <span class="n">num_layers</span> <span class="o">=</span> <span class="mi">44</span>
-    <span class="n">batch_norm_decay</span> <span class="o">=</span> <span class="mf">0.997</span>
+
+    <span class="c1"># batch_norm_decay = 0.997</span>
+    <span class="n">batch_norm_decay</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;batch_norm_decay&quot;</span><span class="p">]</span>
     <span class="n">batch_norm_epsilon</span> <span class="o">=</span> <span class="mf">1e-5</span>
-    <span class="n">weight_decay</span> <span class="o">=</span> <span class="mf">2e-4</span>
+    <span class="c1"># weight_decay = 2e-4</span>
+    <span class="n">weight_decay</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;weight_decay&quot;</span><span class="p">]</span>
     <span class="n">learning_rate</span> <span class="o">=</span> <span class="mf">0.1</span>
 
     <span class="n">is_training</span> <span class="o">=</span> <span class="p">(</span><span class="n">mode</span> <span class="o">==</span> <span class="n">tf</span><span class="o">.</span><span class="n">estimator</span><span class="o">.</span><span class="n">ModeKeys</span><span class="o">.</span><span class="n">TRAIN</span><span class="p">)</span>
-
+    <span class="c1">## Neural network architecture</span>
     <span class="n">model</span> <span class="o">=</span> <span class="n">ResNetCifar10</span><span class="p">(</span>
         <span class="n">num_layers</span><span class="p">,</span>
         <span class="n">batch_norm_decay</span><span class="o">=</span><span class="n">batch_norm_decay</span><span class="p">,</span>
@@ -13544,46 +13494,44 @@ In this function, we download the CIFAR-10 data, load TFRecordDataset from it an
             <span class="s1">&#39;logits&#39;</span><span class="p">:</span> <span class="n">logits</span><span class="p">,</span>
         <span class="p">}</span>
         <span class="k">return</span> <span class="n">tf</span><span class="o">.</span><span class="n">estimator</span><span class="o">.</span><span class="n">EstimatorSpec</span><span class="p">(</span><span class="n">mode</span><span class="p">,</span> <span class="n">predictions</span><span class="o">=</span><span class="n">predictions</span><span class="p">)</span>
-
+    <span class="c1">## Defining Loss</span>
+<span class="c1">#     labels = tf.string_to_number(labels,out_type=tf.int32)</span>
     <span class="n">loss</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">losses</span><span class="o">.</span><span class="n">sparse_softmax_cross_entropy</span><span class="p">(</span><span class="n">logits</span><span class="o">=</span><span class="n">logits</span><span class="p">,</span> <span class="n">labels</span><span class="o">=</span><span class="n">labels</span><span class="p">)</span>
     <span class="n">loss</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">reduce_mean</span><span class="p">(</span><span class="n">loss</span><span class="p">)</span>
     <span class="n">model_params</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">trainable_variables</span><span class="p">()</span>
     <span class="n">loss</span> <span class="o">+=</span> <span class="n">weight_decay</span> <span class="o">*</span> <span class="n">tf</span><span class="o">.</span><span class="n">add_n</span><span class="p">([</span><span class="n">tf</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">l2_loss</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">model_params</span><span class="p">])</span>
+    <span class="n">predictions</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">logits</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
 
-    <span class="c1">####################################### end loss etc definitions ############################################</span>
-    <span class="c1"># Compute evaluation metrics.</span>
+    <span class="c1">## Compute evaluation metrics.</span>
     <span class="n">accuracy</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">metrics</span><span class="o">.</span><span class="n">accuracy</span><span class="p">(</span><span class="n">labels</span><span class="o">=</span><span class="n">labels</span><span class="p">,</span> <span class="n">predictions</span><span class="o">=</span><span class="n">tf</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">logits</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">),</span>
                                    <span class="n">name</span><span class="o">=</span><span class="s1">&#39;acc_op&#39;</span><span class="p">)</span>
     <span class="n">metrics</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;accuracy&#39;</span><span class="p">:</span> <span class="n">accuracy</span><span class="p">}</span>
     <span class="n">tf</span><span class="o">.</span><span class="n">summary</span><span class="o">.</span><span class="n">scalar</span><span class="p">(</span><span class="s1">&#39;accuracy&#39;</span><span class="p">,</span> <span class="n">accuracy</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
-    <span class="c1"># TODO tf.summary.scalar(&#39;accuracy&#39;, accuracy[1])</span>
 
     <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="n">tf</span><span class="o">.</span><span class="n">estimator</span><span class="o">.</span><span class="n">ModeKeys</span><span class="o">.</span><span class="n">EVAL</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">tf</span><span class="o">.</span><span class="n">estimator</span><span class="o">.</span><span class="n">EstimatorSpec</span><span class="p">(</span> <span class="n">mode</span><span class="p">,</span> <span class="n">loss</span><span class="o">=</span><span class="n">loss</span><span class="p">,</span> <span class="n">eval_metric_ops</span><span class="o">=</span><span class="n">metrics</span><span class="p">)</span>
 
-    <span class="c1"># Create training op.</span>
     <span class="k">assert</span> <span class="n">mode</span> <span class="o">==</span> <span class="n">tf</span><span class="o">.</span><span class="n">estimator</span><span class="o">.</span><span class="n">ModeKeys</span><span class="o">.</span><span class="n">TRAIN</span>
-    <span class="c1">#FIXME</span>
-    <span class="n">num_batches_per_epoch</span> <span class="o">=</span> <span class="mi">45000</span> <span class="o">//</span> <span class="mi">64</span>  <span class="c1"># * num_workers)</span>
+
+    <span class="c1">## Create optimizer</span>
+    <span class="n">num_batches_per_epoch</span> <span class="o">=</span> <span class="mi">45000</span> <span class="o">//</span> <span class="mi">64</span>
     <span class="n">boundaries</span> <span class="o">=</span> <span class="p">[</span> <span class="n">num_batches_per_epoch</span> <span class="o">*</span> <span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">82</span><span class="p">,</span> <span class="mi">123</span><span class="p">,</span> <span class="mi">300</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)]</span>
     <span class="n">staged_lr</span> <span class="o">=</span> <span class="p">[</span><span class="n">learning_rate</span> <span class="o">*</span> <span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">,</span> <span class="mf">0.01</span><span class="p">,</span> <span class="mf">0.002</span><span class="p">]]</span>
     <span class="n">learning_rate</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">train</span><span class="o">.</span><span class="n">piecewise_constant</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">train</span><span class="o">.</span><span class="n">get_global_step</span><span class="p">(),</span> <span class="n">boundaries</span><span class="p">,</span> <span class="n">staged_lr</span><span class="p">)</span>
     <span class="n">optimizer</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">train</span><span class="o">.</span><span class="n">MomentumOptimizer</span><span class="p">(</span><span class="n">learning_rate</span><span class="o">=</span><span class="n">learning_rate</span><span class="p">,</span> <span class="n">momentum</span><span class="o">=</span><span class="mf">0.9</span><span class="p">)</span>
 
-    <span class="c1"># optimizer = tf.train.SyncReplicasOptimizer(optimizer, 4, 4)</span>
-    <span class="c1"># optimizer.make_session_run_hook()</span>
-
+    <span class="c1">## Create global step and training operation</span>
     <span class="n">global_step</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">train</span><span class="o">.</span><span class="n">get_global_step</span><span class="p">()</span>
-    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Device is&quot;</span><span class="p">)</span>
-    <span class="nb">print</span><span class="p">(</span><span class="n">global_step</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
     <span class="n">train_op</span> <span class="o">=</span> <span class="n">optimizer</span><span class="o">.</span><span class="n">minimize</span><span class="p">(</span><span class="n">loss</span><span class="p">,</span> <span class="n">global_step</span><span class="o">=</span><span class="n">global_step</span><span class="p">)</span>
 
-
+    <span class="c1">## Some print operations for better logging.</span>
     <span class="n">update_ops</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">get_collection</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">GraphKeys</span><span class="o">.</span><span class="n">UPDATE_OPS</span><span class="p">)</span>
     <span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">control_dependencies</span><span class="p">(</span><span class="n">update_ops</span><span class="p">):</span>
         <span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">control_dependencies</span><span class="p">([</span><span class="n">train_op</span><span class="p">]):</span>
+            <span class="n">train_op</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">Print</span><span class="p">(</span><span class="n">predictions</span><span class="p">,</span> <span class="p">[</span><span class="n">predictions</span><span class="p">,</span> <span class="n">tf</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="n">predictions</span><span class="p">),</span> <span class="s2">&quot;predictions&quot;</span><span class="p">],</span> <span class="n">summarize</span><span class="o">=</span><span class="mi">32</span><span class="p">)</span>
             <span class="n">train_op</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">Print</span><span class="p">(</span><span class="n">global_step</span><span class="p">,</span> <span class="p">[</span><span class="n">global_step</span><span class="p">])</span>
 
+    <span class="c1">## Return Estimator Spec with loss and training operation</span>
     <span class="k">return</span> <span class="n">tf</span><span class="o">.</span><span class="n">estimator</span><span class="o">.</span><span class="n">EstimatorSpec</span><span class="p">(</span><span class="n">mode</span><span class="p">,</span> <span class="n">loss</span><span class="o">=</span><span class="n">loss</span><span class="p">,</span> <span class="n">train_op</span><span class="o">=</span><span class="n">train_op</span><span class="p">,</span> <span class="n">training_chief_hooks</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
 </pre></div>
 
@@ -13595,7 +13543,8 @@ In this function, we download the CIFAR-10 data, load TFRecordDataset from it an
 <div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
 </div><div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<h3 id="Run-the-job">Run the job<a class="anchor-link" href="#Run-the-job">&#182;</a></h3><p>Below we run this setup for 5000 iterations and two workers. We save this model under the name "Cifar10_Odd_Classes_5000_Iters". Later in <a href="2_TransferLearning.ipynb">TransferLearning Notebook</a>, we will look this up and transfer from this model.</p>
+<h3 id="Training-Model-using-SBrain-Estimator">Training Model using SBrain Estimator<a class="anchor-link" href="#Training-Model-using-SBrain-Estimator">&#182;</a></h3><p>The model function we defined above captures the structure of the network, loss and training operation. The next step is to tie this up to other <strong>SBrain</strong> abstractions.</p>
+<p>Here, we define a new <strong>SBrain</strong> classification estimator, passing in the same model_function that we defined earlier. This gives us an <strong>SBrain</strong> object which packages your model function.</p>
 
 </div>
 </div>
@@ -13605,32 +13554,255 @@ In this function, we download the CIFAR-10 data, load TFRecordDataset from it an
 <div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
 <div class="inner_cell">
     <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span></span><span class="n">estimator</span> <span class="o">=</span> <span class="n">Estimator</span><span class="o">.</span><span class="n">NewClassificationEstimator</span><span class="p">(</span><span class="n">model_fn</span><span class="o">=</span><span class="n">cifar_model_function</span><span class="p">)</span>
-<span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;CIFAR10_odd_class_estimator&quot;</span>
-<span class="n">estimator</span> <span class="o">=</span> <span class="n">Estimator</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="s2">&quot;Resnet Cifar10 estimator&quot;</span><span class="p">,</span> <span class="n">estimator</span><span class="p">)</span>
+<div class=" highlight hl-ipython3"><pre><span></span><span class="n">classification_estimator</span> <span class="o">=</span> <span class="n">Estimator</span><span class="o">.</span><span class="n">NewClassificationEstimator</span><span class="p">(</span><span class="n">model_fn</span><span class="o">=</span><span class="n">cifar_model_function</span><span class="p">)</span>
+</pre></div>
 
-<span class="n">hyper_parameters</span> <span class="o">=</span> <span class="n">HParams</span><span class="p">(</span><span class="n">iterations</span><span class="o">=</span><span class="mi">5000</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="mi">128</span><span class="p">)</span>
-<span class="n">rc</span> <span class="o">=</span> <span class="n">RunConfig</span><span class="p">(</span><span class="n">no_of_ps</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">no_of_workers</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">run_eval</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">use_gpu</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    </div>
+</div>
+</div>
 
+</div>
+<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+</div><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p>Now we save this estimator as an asset in the <strong>SBrain</strong> environment, with a name we choose.</p>
 
-<span class="n">odd_class_experiment_name</span> <span class="o">=</span> <span class="s2">&quot;Cifar10_Odd_Classes_5000_Iterations&quot;</span>
-<span class="n">experiment</span> <span class="o">=</span> <span class="n">Experiment</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">experiment_name</span><span class="o">=</span><span class="n">odd_class_experiment_name</span><span class="p">,</span>
-                     <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Cifar10 Odd classes Model&quot;</span><span class="p">,</span>
-                     <span class="n">estimator</span><span class="o">=</span><span class="n">estimator</span><span class="p">,</span>
-                     <span class="n">hyper_parameters</span><span class="o">=</span><span class="n">hyper_parameters</span><span class="p">,</span>
-                     <span class="n">run_config</span><span class="o">=</span><span class="n">rc</span><span class="p">,</span>
-                     <span class="n">dataset_version_split</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                     <span class="n">input_function</span><span class="o">=</span><span class="n">only_odd_classes_input_function</span><span class="p">)</span>
-<span class="n">job</span> <span class="o">=</span> <span class="n">experiment</span><span class="o">.</span><span class="n">get_single_job</span><span class="p">()</span>
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;tensorboard url&quot;</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">get_tensorboard_url</span><span class="p">())</span>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="n">name</span> <span class="o">=</span> <span class="n">uniquify</span><span class="p">(</span><span class="s2">&quot;ResnetCifar10InputFunc&quot;</span><span class="p">)</span>
+<span class="n">saved_estimator</span> <span class="o">=</span> <span class="n">Estimator</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">estimator_name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span>
+                                   <span class="n">description</span><span class="o">=</span><span class="s2">&quot;ResNet Cifar10 estimator trial&quot;</span><span class="p">,</span>
+                                   <span class="n">estimator_obj</span><span class="o">=</span><span class="n">classification_estimator</span><span class="p">)</span>
+</pre></div>
 
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Has the job finished? </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">has_finished</span><span class="p">()))</span>
+    </div>
+</div>
+</div>
 
-<span class="n">job</span><span class="o">.</span><span class="n">wait_until_finish</span><span class="p">()</span>
+</div>
+<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+</div><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<h4 id="Searching-Estimators">Searching Estimators<a class="anchor-link" href="#Searching-Estimators">&#182;</a></h4><p>Also you can search for specific ones using name/description as shown in the code below.</p>
 
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Model metrics..&quot;</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">get_model</span><span class="p">()</span><span class="o">.</span><span class="n">model_metrics</span><span class="p">)</span>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="n">all_resnet_estimators</span> <span class="o">=</span> <span class="n">Estimator</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">estimator_name</span><span class="o">=</span><span class="n">name</span><span class="p">)</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
+
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="n">run_config</span> <span class="o">=</span> <span class="n">RunConfig</span><span class="p">(</span><span class="n">no_of_ps</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">no_of_workers</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">summary_save_frequency</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">run_eval</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">use_gpu</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
+
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="n">hyper_parameters</span> <span class="o">=</span> <span class="n">HParams</span><span class="p">(</span><span class="n">iterations</span><span class="o">=</span><span class="mi">5000</span><span class="p">,</span>
+                       <span class="n">batch_size</span><span class="o">=</span><span class="mi">128</span><span class="p">,</span>
+                       <span class="n">batch_norm_decay</span><span class="o">=</span><span class="mf">0.9</span><span class="p">,</span>
+                       <span class="n">batch_norm_epsilon</span><span class="o">=</span><span class="mf">1e-5</span><span class="p">,</span>
+                       <span class="n">weight_decay</span><span class="o">=</span><span class="mf">2e-4</span><span class="p">,</span>
+                       <span class="n">learning_rate</span><span class="o">=</span><span class="mf">0.1</span><span class="p">)</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
+
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="n">experiment_name</span> <span class="o">=</span> <span class="n">uniquify</span><span class="p">(</span><span class="s2">&quot;Resnet_CIFAR10_model&quot;</span><span class="p">)</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
+
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="n">experiment</span> <span class="o">=</span> <span class="n">Experiment</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">experiment_name</span><span class="o">=</span><span class="n">experiment_name</span><span class="p">,</span>
+                                <span class="n">description</span><span class="o">=</span><span class="s2">&quot;ResNet Model trained on Cifar10 data&quot;</span><span class="p">,</span>
+                                <span class="n">estimator</span><span class="o">=</span><span class="n">saved_estimator</span><span class="p">,</span>
+                                <span class="n">hyper_parameters</span><span class="o">=</span><span class="n">hyper_parameters</span><span class="p">,</span>
+                                <span class="n">run_config</span><span class="o">=</span><span class="n">run_config</span><span class="p">,</span>
+                                <span class="n">dataset_version_split</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                                <span class="n">input_function</span><span class="o">=</span><span class="n">input_function</span><span class="p">)</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
+
+</div>
+<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+</div><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p>At this point, you have started an experiment run. It will start multiple training jobs in **SBrain**. It is currently executing in the cluster. The Experiment object is your handle to the training job/s that are currently running in the cluster which are part of the particular experiment. </p>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="n">experiment</span><span class="o">.</span><span class="n">has_finished</span><span class="p">()</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
+
+</div>
+<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+</div><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p>The below methods will report the statuses of number of jobs under this experiment. List jobs will list all jobs under this experiment</p>
+
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="n">experiment</span><span class="o">.</span><span class="n">report_status</span><span class="p">()</span>
+<span class="n">experiment</span><span class="o">.</span><span class="n">list_jobs</span><span class="p">()</span>
+<span class="n">experiment</span><span class="o">.</span><span class="n">wait_until_finish</span><span class="p">()</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
+
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="n">job</span> <span class="o">=</span> <span class="n">LearningJob</span><span class="o">.</span><span class="n">lookup</span><span class="p">(</span><span class="s2">&quot;Resnet_CIFAR10_modeladmin15523281804849524&quot;</span><span class="p">)</span>
+<span class="n">model</span> <span class="o">=</span> <span class="n">job</span><span class="o">.</span><span class="n">get_model</span><span class="p">()</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">model_metrics</span><span class="p">)</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
+
+</div>
+<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+</div><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<h2 id="Launching-Model-Inference-Endpoint-and-making-predictions">Launching Model Inference Endpoint and making predictions<a class="anchor-link" href="#Launching-Model-Inference-Endpoint-and-making-predictions">&#182;</a></h2>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="kn">from</span> <span class="nn">sbrain.serving.model_service_endpoint</span> <span class="k">import</span> <span class="o">*</span>
+
+<span class="n">end_point_name</span><span class="o">=</span><span class="s2">&quot;ep_</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">model_name</span><span class="p">)</span>
+<span class="n">mep</span> <span class="o">=</span> <span class="n">ModelEndpoint</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="n">model</span><span class="p">,</span> 
+                           <span class="n">endpoint_name</span><span class="o">=</span><span class="n">end_point_name</span><span class="p">,</span>
+                           <span class="n">description</span><span class="o">=</span><span class="n">end_point_name</span><span class="p">,</span> 
+                           <span class="n">number_of_service_replicas</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> 
+                           <span class="n">gpu_required</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+<span class="n">mep</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">endpoint_name</span><span class="o">=</span><span class="n">end_point_name</span><span class="p">)</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
+
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="kn">import</span> <span class="nn">glob</span>
+
+<span class="kn">import</span> <span class="nn">base64</span>
+<span class="k">def</span> <span class="nf">encode_img</span><span class="p">(</span><span class="n">img_path</span><span class="p">):</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">img_path</span><span class="p">,</span> <span class="s2">&quot;rb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">imageFile</span><span class="p">:</span>
+        <span class="nb">str</span> <span class="o">=</span> <span class="n">base64</span><span class="o">.</span><span class="n">b64encode</span><span class="p">(</span><span class="n">imageFile</span><span class="o">.</span><span class="n">read</span><span class="p">())</span>
+        <span class="k">return</span> <span class="nb">str</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span>
+    
+
+<span class="n">root_dir</span> <span class="o">=</span> <span class="s2">&quot;../demo-data/cifar10-input-function/predict&quot;</span>
+<span class="n">files</span> <span class="o">=</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{}</span><span class="s2">/*.png&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">root_dir</span><span class="p">))</span>
+<span class="n">files</span> <span class="o">=</span> <span class="n">files</span><span class="p">[:</span><span class="mi">100</span><span class="p">]</span>
+<span class="n">encoded_imgs</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">files</span><span class="p">:</span>
+    <span class="n">encoded_imgs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">encode_img</span><span class="p">(</span><span class="n">f</span><span class="p">))</span>
+
+<span class="n">features_dict</span> <span class="o">=</span> <span class="p">{}</span>
+<span class="n">features_dict</span><span class="p">[</span><span class="s1">&#39;features&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">encoded_imgs</span>
+<span class="n">result</span> <span class="o">=</span> <span class="n">mep</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">features_dict</span><span class="p">)</span>
+<span class="n">predicted</span> <span class="o">=</span> <span class="n">result</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s1">&#39;class_ids&#39;</span><span class="p">]</span>
+<span class="n">classes</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s1">&#39;airplane&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+                <span class="s1">&#39;automobile&#39;</span><span class="p">:</span><span class="mi">1</span><span class="p">,</span>
+                <span class="s1">&#39;bird&#39;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>
+                <span class="s1">&#39;cat&#39;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span>
+                <span class="s1">&#39;deer&#39;</span><span class="p">:</span> <span class="mi">4</span><span class="p">,</span>
+                <span class="s1">&#39;dog&#39;</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span>
+                <span class="s1">&#39;frog&#39;</span><span class="p">:</span> <span class="mi">6</span><span class="p">,</span>
+                <span class="s1">&#39;horse&#39;</span><span class="p">:</span> <span class="mi">7</span><span class="p">,</span>
+                <span class="s1">&#39;ship&#39;</span><span class="p">:</span> <span class="mi">8</span><span class="p">,</span>
+                <span class="s1">&#39;truck&#39;</span><span class="p">:</span> <span class="mi">9</span>
+            <span class="p">}</span>
+
+<span class="n">correct</span><span class="o">=</span><span class="mi">0</span>
+<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">100</span><span class="p">):</span>
+    <span class="n">img_name</span> <span class="o">=</span> <span class="n">files</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">:][</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">lbl_str</span> <span class="o">=</span> <span class="n">img_name</span><span class="p">[</span><span class="n">img_name</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s1">&#39;_&#39;</span><span class="p">)</span><span class="o">+</span><span class="mi">1</span><span class="p">:</span><span class="n">img_name</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)]</span>
+    <span class="n">orig_lbl</span> <span class="o">=</span> <span class="n">classes</span><span class="p">[</span><span class="n">lbl_str</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">orig_lbl</span> <span class="o">==</span> <span class="n">predicted</span><span class="p">[</span><span class="n">i</span><span class="p">]:</span>
+        <span class="n">correct</span> <span class="o">+=</span> <span class="mi">1</span>    
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Accuracy </span><span class="si">{}</span><span class="s2"> %&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">correct</span><span class="p">))</span>
 </pre></div>
 
     </div>
@@ -13645,19 +13817,6 @@ In this function, we download the CIFAR-10 data, load TFRecordDataset from it an
 
 </div>
 </div>
-</div>
-<div class="cell border-box-sizing code_cell rendered">
-<div class="input">
-<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
-<div class="inner_cell">
-    <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span></span> 
-</pre></div>
-
-    </div>
-</div>
-</div>
-
 </div>
     </div>
   </div>

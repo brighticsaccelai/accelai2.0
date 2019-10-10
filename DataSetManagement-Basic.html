@@ -2,7 +2,7 @@
 <html>
 <head><meta charset="utf-8" />
 
-<title>Reference_CIFAR10-OddClassesTraining</title>
+<title>DataSetManagement-Basic</title>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.1.10/require.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
@@ -13116,17 +13116,49 @@ div#notebook {
 <div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
 </div><div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<h1 id="Resnet-model-training-on-CIFAR10-odd-numbered-classes-on-SBrain"><div class="alert alert-block alert-info" style="border-width:4px">Resnet model training on CIFAR10 odd numbered classes on SBrain</div><a class="anchor-link" href="#Resnet-model-training-on-CIFAR10-odd-numbered-classes-on-SBrain">&#182;</a></h1>
+<h1 id="SBrain-DataSet-APIs-Tutorial-"><div class="alert alert-block alert-info" style="border-width:4px">SBrain DataSet APIs Tutorial </div><a class="anchor-link" href="#SBrain-DataSet-APIs-Tutorial-">&#182;</a></h1>
 </div>
 </div>
 </div>
 <div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
 </div><div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<h1 id="Introduction">Introduction<a class="anchor-link" href="#Introduction">&#182;</a></h1><p>THIS NOTEBOOK CAN TAKE LONG TIME TO RUN. SO IT IS MAINLY FOR REFERENCE. IT MAY TAKE SOME TIME IF YOU TRY TO RUN IT.</p>
-<p>In this notebook, we will build a Resnet model and train it on CIFAR10 dataset, but only on odd numbered classes. When we do transfer learning in <a href="2_TransferLearning.ipynb">TransferLearning Notebook</a>, this model will serve as the model that we transfer from.</p>
-<p>Below, we define an input_function to be used in SBrain. More details on input_function is in <a href="2_TransferLearning.ipynb">TransferLearning Notebook</a>.
-In this function, we download the CIFAR-10 data, load TFRecordDataset from it and filter it for only the odd numbered classes.</p>
+<h3 id="NOTE-:-*-This-is-a-sample-notebook.-Please-make-a-copy-of-it-for-yourself-and-try-it-out.">NOTE : * This is a sample notebook. Please make a copy of it for yourself and try it out.<a class="anchor-link" href="#NOTE-:-*-This-is-a-sample-notebook.-Please-make-a-copy-of-it-for-yourself-and-try-it-out.">&#182;</a></h3>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+</div><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p><a id='top'></a>
+This tutorial covers the following:</p>
+<ul>
+<li><p><a href="#create_dataset">Create DataSet</a></p>
+</li>
+<li><p><a href="#search_datasets">Search And Retrieve Existing DataSets</a></p>
+</li>
+<li><p><a href="#search_versions">Search And Retrieve DataSet Versions</a></p>
+</li>
+<li><p><a href="#trans">Transforming DataSet Versions To Generate New DataSet Versions</a></p>
+<ul>
+<li><a href="#define_trans">Defining and Saving Transformations</a></li>
+<li><a href="#test_trans">Testing Set of Transformations on Single Image</a></li>
+<li><a href="#run_trans">Running Transformation Job</a></li>
+<li><a href="#reuse_trans">Reusing Transformations</a></li>
+</ul>
+</li>
+<li><p><a href="#splits">Creating Training/Test/Validation Splits</a></p>
+</li>
+<li><p><a href="#search_splits">Searching And Retrieving DataSet Splits</a></p>
+</li>
+</ul>
+<p>We are using a subset of the <a href="https://en.wikipedia.org/wiki/CIFAR-10">cifar_10 dataset</a>, which has pictures of animals, airplanes, ships and so on.</p>
+<p>Let's first import all the packages that you will need during this tutorial.</p>
+<ul>
+<li>sbrain.dataset is the SBrain package with abstractions necessary to use SBrain's DataSet functionalities.</li>
+<li><a href="www.numpy.org">numpy</a> is the fundamental package for scientific computing with Python.</li>
+<li>cv2  i.e. <a href="https://opencv.org">openCV</a> is a popular computer vision library </li>
+</ul>
 
 </div>
 </div>
@@ -13136,178 +13168,14 @@ In this function, we download the CIFAR-10 data, load TFRecordDataset from it an
 <div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
 <div class="inner_cell">
     <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span></span><span class="kn">from</span> <span class="nn">sbrain.learning.experiment</span> <span class="k">import</span> <span class="o">*</span>
-<span class="kn">from</span> <span class="nn">sbrain.dataset.dataset</span> <span class="k">import</span> <span class="o">*</span>
-
-<span class="k">def</span> <span class="nf">only_odd_classes_input_function</span><span class="p">(</span><span class="n">mode</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
-    <span class="kn">import</span> <span class="nn">os</span>
-    <span class="kn">import</span> <span class="nn">tensorflow</span> <span class="k">as</span> <span class="nn">tf</span>
-    <span class="kn">import</span> <span class="nn">sys</span>
-    <span class="kn">import</span> <span class="nn">tarfile</span>
-    <span class="kn">import</span> <span class="nn">pickle</span>
-    <span class="n">CLASS_INDEX_MOD</span> <span class="o">=</span> <span class="mi">0</span>
-
-    <span class="n">HEIGHT</span> <span class="o">=</span> <span class="mi">32</span>
-    <span class="n">WIDTH</span> <span class="o">=</span> <span class="mi">32</span>
-    <span class="n">DEPTH</span> <span class="o">=</span> <span class="mi">3</span>
-
-    <span class="n">CIFAR_FILENAME</span> <span class="o">=</span> <span class="s1">&#39;cifar-10-python.tar.gz&#39;</span>
-    <span class="n">CIFAR_DOWNLOAD_URL</span> <span class="o">=</span> <span class="s1">&#39;https://www.cs.toronto.edu/~kriz/&#39;</span> <span class="o">+</span> <span class="n">CIFAR_FILENAME</span>
-    <span class="n">CIFAR_LOCAL_FOLDER</span> <span class="o">=</span> <span class="s1">&#39;cifar-10-batches-py&#39;</span>
-
-    <span class="k">def</span> <span class="nf">download_and_extract</span><span class="p">(</span><span class="n">data_dir</span><span class="p">):</span>
-        <span class="c1"># download CIFAR-10 if not already downloaded.</span>
-        <span class="n">tf</span><span class="o">.</span><span class="n">contrib</span><span class="o">.</span><span class="n">learn</span><span class="o">.</span><span class="n">datasets</span><span class="o">.</span><span class="n">base</span><span class="o">.</span><span class="n">maybe_download</span><span class="p">(</span><span class="n">CIFAR_FILENAME</span><span class="p">,</span> <span class="n">data_dir</span><span class="p">,</span>
-                                                      <span class="n">CIFAR_DOWNLOAD_URL</span><span class="p">)</span>
-        <span class="n">tarfile</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">data_dir</span><span class="p">,</span> <span class="n">CIFAR_FILENAME</span><span class="p">),</span>
-                     <span class="s1">&#39;r:gz&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">extractall</span><span class="p">(</span><span class="n">data_dir</span><span class="p">)</span>
-
-    <span class="k">def</span> <span class="nf">_int64_feature</span><span class="p">(</span><span class="n">value</span><span class="p">):</span>
-        <span class="k">return</span> <span class="n">tf</span><span class="o">.</span><span class="n">train</span><span class="o">.</span><span class="n">Feature</span><span class="p">(</span><span class="n">int64_list</span><span class="o">=</span><span class="n">tf</span><span class="o">.</span><span class="n">train</span><span class="o">.</span><span class="n">Int64List</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="p">[</span><span class="n">value</span><span class="p">]))</span>
-
-    <span class="k">def</span> <span class="nf">_bytes_feature</span><span class="p">(</span><span class="n">value</span><span class="p">):</span>
-        <span class="k">return</span> <span class="n">tf</span><span class="o">.</span><span class="n">train</span><span class="o">.</span><span class="n">Feature</span><span class="p">(</span><span class="n">bytes_list</span><span class="o">=</span><span class="n">tf</span><span class="o">.</span><span class="n">train</span><span class="o">.</span><span class="n">BytesList</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="p">[</span><span class="n">value</span><span class="p">]))</span>
-
-    <span class="k">def</span> <span class="nf">_get_file_names</span><span class="p">():</span>
-        <span class="sd">&quot;&quot;&quot;Returns the file names expected to exist in the input_dir.&quot;&quot;&quot;</span>
-        <span class="n">file_names</span> <span class="o">=</span> <span class="p">{}</span>
-        <span class="n">file_names</span><span class="p">[</span><span class="s1">&#39;train&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;data_batch_</span><span class="si">%d</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">i</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">5</span><span class="p">)]</span>
-        <span class="n">file_names</span><span class="p">[</span><span class="s1">&#39;validation&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;data_batch_5&#39;</span><span class="p">]</span>
-        <span class="n">file_names</span><span class="p">[</span><span class="s1">&#39;eval&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;test_batch&#39;</span><span class="p">]</span>
-        <span class="k">return</span> <span class="n">file_names</span>
-
-    <span class="k">def</span> <span class="nf">read_pickle_from_file</span><span class="p">(</span><span class="n">filename</span><span class="p">):</span>
-        <span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">gfile</span><span class="o">.</span><span class="n">Open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
-            <span class="k">if</span> <span class="n">sys</span><span class="o">.</span><span class="n">version_info</span> <span class="o">&gt;=</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">0</span><span class="p">):</span>
-                <span class="n">data_dict</span> <span class="o">=</span> <span class="n">pickle</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s1">&#39;bytes&#39;</span><span class="p">)</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">data_dict</span> <span class="o">=</span> <span class="n">pickle</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">data_dict</span>
-
-    <span class="k">def</span> <span class="nf">convert_to_tfrecord</span><span class="p">(</span><span class="n">input_files</span><span class="p">,</span> <span class="n">output_file</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Converts a file to TFRecords.&quot;&quot;&quot;</span>
-        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Generating </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">output_file</span><span class="p">)</span>
-        <span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">python_io</span><span class="o">.</span><span class="n">TFRecordWriter</span><span class="p">(</span><span class="n">output_file</span><span class="p">)</span> <span class="k">as</span> <span class="n">record_writer</span><span class="p">:</span>
-            <span class="k">for</span> <span class="n">input_file</span> <span class="ow">in</span> <span class="n">input_files</span><span class="p">:</span>
-                <span class="n">data_dict</span> <span class="o">=</span> <span class="n">read_pickle_from_file</span><span class="p">(</span><span class="n">input_file</span><span class="p">)</span>
-                <span class="n">data</span> <span class="o">=</span> <span class="n">data_dict</span><span class="p">[</span><span class="sa">b</span><span class="s1">&#39;data&#39;</span><span class="p">]</span>
-                <span class="n">labels</span> <span class="o">=</span> <span class="n">data_dict</span><span class="p">[</span><span class="sa">b</span><span class="s1">&#39;labels&#39;</span><span class="p">]</span>
-                <span class="n">num_entries_in_batch</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">labels</span><span class="p">)</span>
-                <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_entries_in_batch</span><span class="p">):</span>
-                    <span class="n">example</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">train</span><span class="o">.</span><span class="n">Example</span><span class="p">(</span><span class="n">features</span><span class="o">=</span><span class="n">tf</span><span class="o">.</span><span class="n">train</span><span class="o">.</span><span class="n">Features</span><span class="p">(</span>
-                        <span class="n">feature</span><span class="o">=</span><span class="p">{</span>
-                            <span class="s1">&#39;image&#39;</span><span class="p">:</span> <span class="n">_bytes_feature</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">tobytes</span><span class="p">()),</span>
-                            <span class="s1">&#39;label&#39;</span><span class="p">:</span> <span class="n">_int64_feature</span><span class="p">(</span><span class="n">labels</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
-                        <span class="p">}))</span>
-                    <span class="n">record_writer</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">example</span><span class="o">.</span><span class="n">SerializeToString</span><span class="p">())</span>
-
-    <span class="k">def</span> <span class="nf">setup_cifar10_data</span><span class="p">(</span><span class="n">data_dir</span><span class="p">):</span>
-        <span class="n">train_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">data_dir</span><span class="p">,</span> <span class="s1">&#39;train.tfrecords&#39;</span><span class="p">)</span>
-        <span class="n">validation_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">data_dir</span><span class="p">,</span> <span class="s1">&#39;validation.tfrecords&#39;</span><span class="p">)</span>
-        <span class="n">eval_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">data_dir</span><span class="p">,</span> <span class="s1">&#39;eval.tfrecords&#39;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">train_dir</span><span class="p">)</span> <span class="ow">and</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">validation_dir</span><span class="p">)</span> <span class="ow">and</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">eval_dir</span><span class="p">):</span>
-            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Data already present.&quot;</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Download from </span><span class="si">{}</span><span class="s1"> and extract. Wait for download complete message..&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">CIFAR_DOWNLOAD_URL</span><span class="p">))</span>
-            <span class="n">download_and_extract</span><span class="p">(</span><span class="n">data_dir</span><span class="p">)</span>
-            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Download completed&#39;</span><span class="p">)</span>
-            <span class="n">file_names</span> <span class="o">=</span> <span class="n">_get_file_names</span><span class="p">()</span>
-            <span class="n">input_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">data_dir</span><span class="p">,</span> <span class="n">CIFAR_LOCAL_FOLDER</span><span class="p">)</span>
-            <span class="k">for</span> <span class="n">mode</span><span class="p">,</span> <span class="n">files</span> <span class="ow">in</span> <span class="n">file_names</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-                <span class="n">input_files</span> <span class="o">=</span> <span class="p">[</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">input_dir</span><span class="p">,</span> <span class="n">f</span><span class="p">)</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">files</span><span class="p">]</span>
-                <span class="n">output_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">data_dir</span><span class="p">,</span> <span class="n">mode</span> <span class="o">+</span> <span class="s1">&#39;.tfrecords&#39;</span><span class="p">)</span>
-                <span class="k">try</span><span class="p">:</span>
-                    <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">output_file</span><span class="p">)</span>
-                <span class="k">except</span> <span class="ne">OSError</span><span class="p">:</span>
-                    <span class="k">pass</span>
-                <span class="c1"># Convert to tf.train.Example and write the to TFRecords.</span>
-                <span class="n">convert_to_tfrecord</span><span class="p">(</span><span class="n">input_files</span><span class="p">,</span> <span class="n">output_file</span><span class="p">)</span>
-            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Done!&#39;</span><span class="p">)</span>
-
-    <span class="k">class</span> <span class="nc">Cifar10DataSet</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Cifar10 data set.</span>
-<span class="sd">        Described by http://www.cs.toronto.edu/~kriz/cifar.html.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-
-        <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data_dir</span><span class="p">,</span> <span class="n">subset</span><span class="o">=</span><span class="s1">&#39;train&#39;</span><span class="p">,</span> <span class="n">use_distortion</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">data_dir</span> <span class="o">=</span> <span class="n">data_dir</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">subset</span> <span class="o">=</span> <span class="n">subset</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">use_distortion</span> <span class="o">=</span> <span class="n">use_distortion</span>
-
-        <span class="k">def</span> <span class="nf">get_filenames</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">subset</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;train&#39;</span><span class="p">,</span> <span class="s1">&#39;validation&#39;</span><span class="p">,</span> <span class="s1">&#39;eval&#39;</span><span class="p">]:</span>
-                <span class="k">return</span> <span class="p">[</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data_dir</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">subset</span> <span class="o">+</span> <span class="s1">&#39;.tfrecords&#39;</span><span class="p">)]</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Invalid data subset &quot;</span><span class="si">%s</span><span class="s1">&quot;&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">subset</span><span class="p">)</span>
-
-        <span class="k">def</span> <span class="nf">parser</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">serialized_example</span><span class="p">):</span>
-            <span class="sd">&quot;&quot;&quot;Parses a single tf.Example into image and label tensors.&quot;&quot;&quot;</span>
-            <span class="c1"># Dimensions of the images in the CIFAR-10 dataset.</span>
-            <span class="c1"># See http://www.cs.toronto.edu/~kriz/cifar.html for a description of the</span>
-            <span class="c1"># input format.</span>
-            <span class="n">features</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">parse_single_example</span><span class="p">(</span>
-                <span class="n">serialized_example</span><span class="p">,</span>
-                <span class="n">features</span><span class="o">=</span><span class="p">{</span>
-                    <span class="s1">&#39;image&#39;</span><span class="p">:</span> <span class="n">tf</span><span class="o">.</span><span class="n">FixedLenFeature</span><span class="p">([],</span> <span class="n">tf</span><span class="o">.</span><span class="n">string</span><span class="p">),</span>
-                    <span class="s1">&#39;label&#39;</span><span class="p">:</span> <span class="n">tf</span><span class="o">.</span><span class="n">FixedLenFeature</span><span class="p">([],</span> <span class="n">tf</span><span class="o">.</span><span class="n">int64</span><span class="p">),</span>
-                <span class="p">})</span>
-            <span class="n">image</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">decode_raw</span><span class="p">(</span><span class="n">features</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">],</span> <span class="n">tf</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>
-            <span class="n">image</span><span class="o">.</span><span class="n">set_shape</span><span class="p">([</span><span class="n">DEPTH</span> <span class="o">*</span> <span class="n">HEIGHT</span> <span class="o">*</span> <span class="n">WIDTH</span><span class="p">])</span>
-
-            <span class="c1"># Reshape from [depth * height * width] to [depth, height, width].</span>
-            <span class="n">image</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span>
-                <span class="n">tf</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="p">[</span><span class="n">DEPTH</span><span class="p">,</span> <span class="n">HEIGHT</span><span class="p">,</span> <span class="n">WIDTH</span><span class="p">]),</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">]),</span>
-                <span class="n">tf</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
-            <span class="n">label</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">features</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">],</span> <span class="n">tf</span><span class="o">.</span><span class="n">int32</span><span class="p">)</span>
-
-            <span class="c1"># Custom preprocessing.</span>
-            <span class="n">image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">preprocess</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
-
-            <span class="k">return</span> <span class="p">({</span><span class="s2">&quot;data&quot;</span><span class="p">:</span> <span class="n">image</span><span class="p">},</span> <span class="n">label</span><span class="p">)</span>
-
-        <span class="k">def</span> <span class="nf">adjust_labels</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">label</span><span class="p">):</span>
-            <span class="k">return</span> <span class="n">data</span><span class="p">,</span> <span class="n">tf</span><span class="o">.</span><span class="n">floordiv</span><span class="p">(</span><span class="n">label</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
-
-        <span class="k">def</span> <span class="nf">filter_fun</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">label</span><span class="p">):</span>
-            <span class="k">return</span> <span class="n">tf</span><span class="o">.</span><span class="n">equal</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">mod</span><span class="p">(</span><span class="n">label</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span> <span class="n">CLASS_INDEX_MOD</span><span class="p">)</span>
-
-        <span class="k">def</span> <span class="nf">get_dataset</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-            <span class="sd">&quot;&quot;&quot;Read the images and labels from &#39;filenames&#39;.&quot;&quot;&quot;</span>
-            <span class="n">filenames</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_filenames</span><span class="p">()</span>
-
-            <span class="n">dataset</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">TFRecordDataset</span><span class="p">(</span><span class="n">filenames</span><span class="p">)</span>
-
-            <span class="c1"># Parse records.</span>
-            <span class="n">dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">parser</span><span class="p">)</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">filter_fun</span><span class="p">)</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">adjust_labels</span><span class="p">)</span>
-            <span class="k">return</span> <span class="n">dataset</span>
-
-        <span class="k">def</span> <span class="nf">preprocess</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">image</span><span class="p">):</span>
-            <span class="sd">&quot;&quot;&quot;Preprocess a single image in [height, width, depth] layout.&quot;&quot;&quot;</span>
-            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">subset</span> <span class="o">==</span> <span class="s1">&#39;train&#39;</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">use_distortion</span><span class="p">:</span>
-                <span class="c1"># Pad 4 pixels on each dimension of feature map, done in mini-batch</span>
-                <span class="n">image</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">resize_image_with_crop_or_pad</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="mi">40</span><span class="p">,</span> <span class="mi">40</span><span class="p">)</span>
-                <span class="n">image</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">random_crop</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="p">[</span><span class="n">HEIGHT</span><span class="p">,</span> <span class="n">WIDTH</span><span class="p">,</span> <span class="n">DEPTH</span><span class="p">])</span>
-                <span class="n">image</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">random_flip_left_right</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
-            <span class="k">return</span> <span class="n">image</span>
-
-    <span class="n">use_distortion</span> <span class="o">=</span> <span class="kc">False</span>
-    <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="n">tf</span><span class="o">.</span><span class="n">estimator</span><span class="o">.</span><span class="n">ModeKeys</span><span class="o">.</span><span class="n">TRAIN</span><span class="p">:</span>
-        <span class="n">subset</span> <span class="o">=</span> <span class="s1">&#39;train&#39;</span>
-        <span class="n">use_distortion</span> <span class="o">=</span> <span class="kc">True</span>
-    <span class="k">elif</span> <span class="n">mode</span> <span class="o">==</span> <span class="n">tf</span><span class="o">.</span><span class="n">estimator</span><span class="o">.</span><span class="n">ModeKeys</span><span class="o">.</span><span class="n">EVAL</span><span class="p">:</span>
-        <span class="n">subset</span> <span class="o">=</span> <span class="s1">&#39;validation&#39;</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="n">subset</span> <span class="o">=</span> <span class="s1">&#39;eval&#39;</span>
-    <span class="n">data_dir</span> <span class="o">=</span> <span class="s2">&quot;/workspace/shared-dir/sample-notebooks/demo-data/learning/OddClasses/&quot;</span>
-
-    <span class="n">setup_cifar10_data</span><span class="p">(</span><span class="n">data_dir</span><span class="p">)</span>
-
-    <span class="n">dataset</span> <span class="o">=</span> <span class="n">Cifar10DataSet</span><span class="p">(</span><span class="n">data_dir</span><span class="p">,</span> <span class="n">subset</span><span class="p">,</span> <span class="n">use_distortion</span><span class="p">)</span><span class="o">.</span><span class="n">get_dataset</span><span class="p">()</span>
-
-    <span class="n">dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">shuffle</span><span class="p">(</span><span class="mi">1000</span><span class="p">)</span><span class="o">.</span><span class="n">batch</span><span class="p">(</span><span class="n">batch_size</span><span class="p">)</span>
-    <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="n">tf</span><span class="o">.</span><span class="n">estimator</span><span class="o">.</span><span class="n">ModeKeys</span><span class="o">.</span><span class="n">TRAIN</span><span class="p">:</span>
-        <span class="n">dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">repeat</span><span class="p">()</span>
-    <span class="k">return</span> <span class="n">dataset</span>
+<div class=" highlight hl-ipython3"><pre><span></span><span class="kn">from</span> <span class="nn">sbrain.dataset</span> <span class="k">import</span> <span class="n">DataSetImageClassification</span><span class="p">,</span><span class="n">DataSetVersion</span><span class="p">,</span><span class="n">DataSetSplit</span>
+<span class="kn">from</span> <span class="nn">sbrain.dataset</span> <span class="k">import</span> <span class="n">DataSetStatus</span><span class="p">,</span><span class="n">JobStatus</span><span class="p">,</span><span class="n">DataSetSplitStatus</span><span class="p">,</span><span class="n">DataSetVersionStatus</span>
+<span class="kn">from</span> <span class="nn">sbrain.dataset</span> <span class="k">import</span> <span class="n">Transformation</span><span class="p">,</span><span class="n">TransformationSet</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">cv2</span>
+<span class="kn">import</span> <span class="nn">uuid</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">from</span> <span class="nn">IPython.display</span> <span class="k">import</span> <span class="n">clear_output</span>
 </pre></div>
 
     </div>
@@ -13318,7 +13186,10 @@ In this function, we download the CIFAR-10 data, load TFRecordDataset from it an
 <div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
 </div><div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<p>Here we define, a model function where we build a RESNET model to be trained on the above dataset.</p>
+<h4 id="NOTE:"><strong><em>NOTE</em></strong>:<a class="anchor-link" href="#NOTE:">&#182;</a></h4><p>Please set the username you used to log into sbrain ui in the following cell.
+This value will be used to pass in the search apis to limit the results to the assets created
+by the current user. Its just for illustration purposes.</p>
+<p>User can search other users assets and reuse them by passing in other user's username in search apis.</p>
 
 </div>
 </div>
@@ -13328,263 +13199,7 @@ In this function, we download the CIFAR-10 data, load TFRecordDataset from it an
 <div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
 <div class="inner_cell">
     <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span></span><span class="k">def</span> <span class="nf">cifar_model_function</span><span class="p">(</span><span class="n">features</span><span class="p">,</span> <span class="n">labels</span><span class="p">,</span> <span class="n">mode</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
-    <span class="kn">import</span> <span class="nn">tensorflow</span> <span class="k">as</span> <span class="nn">tf</span>
-    <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
-    <span class="kn">import</span> <span class="nn">os</span>
-    <span class="c1">######################################## Resnet model #########################################</span>
-
-    <span class="k">class</span> <span class="nc">ResNet</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;ResNet model.&quot;&quot;&quot;</span>
-
-        <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">is_training</span><span class="p">,</span> <span class="n">data_format</span><span class="p">,</span> <span class="n">batch_norm_decay</span><span class="p">,</span> <span class="n">batch_norm_epsilon</span><span class="p">):</span>
-            <span class="sd">&quot;&quot;&quot;ResNet constructor.</span>
-
-<span class="sd">            Args:</span>
-<span class="sd">              is_training: if build training or inference model.</span>
-<span class="sd">              data_format: the data_format used during computation.</span>
-<span class="sd">                           one of &#39;channels_first&#39; or &#39;channels_last&#39;.</span>
-<span class="sd">            &quot;&quot;&quot;</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_batch_norm_decay</span> <span class="o">=</span> <span class="n">batch_norm_decay</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_batch_norm_epsilon</span> <span class="o">=</span> <span class="n">batch_norm_epsilon</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_is_training</span> <span class="o">=</span> <span class="n">is_training</span>
-            <span class="k">assert</span> <span class="n">data_format</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;channels_first&#39;</span><span class="p">,</span> <span class="s1">&#39;channels_last&#39;</span><span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_data_format</span> <span class="o">=</span> <span class="n">data_format</span>
-
-        <span class="k">def</span> <span class="nf">forward_pass</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
-            <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
-                <span class="s1">&#39;forward_pass() is implemented in ResNet sub classes&#39;</span><span class="p">)</span>
-
-        <span class="k">def</span> <span class="nf">_residual_v1</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
-                         <span class="n">x</span><span class="p">,</span>
-                         <span class="n">kernel_size</span><span class="p">,</span>
-                         <span class="n">in_filter</span><span class="p">,</span>
-                         <span class="n">out_filter</span><span class="p">,</span>
-                         <span class="n">stride</span><span class="p">,</span>
-                         <span class="n">activate_before_residual</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
-            <span class="sd">&quot;&quot;&quot;Residual unit with 2 sub layers, using Plan A for shortcut connection.&quot;&quot;&quot;</span>
-
-            <span class="k">del</span> <span class="n">activate_before_residual</span>
-            <span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">name_scope</span><span class="p">(</span><span class="s1">&#39;residual_v1&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">name_scope</span><span class="p">:</span>
-                <span class="n">orig_x</span> <span class="o">=</span> <span class="n">x</span>
-
-                <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_conv</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">kernel_size</span><span class="p">,</span> <span class="n">out_filter</span><span class="p">,</span> <span class="n">stride</span><span class="p">)</span>
-                <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_batch_norm</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
-                <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_relu</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
-
-                <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_conv</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">kernel_size</span><span class="p">,</span> <span class="n">out_filter</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
-                <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_batch_norm</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
-
-                <span class="k">if</span> <span class="n">in_filter</span> <span class="o">!=</span> <span class="n">out_filter</span><span class="p">:</span>
-                    <span class="n">orig_x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_avg_pool</span><span class="p">(</span><span class="n">orig_x</span><span class="p">,</span> <span class="n">stride</span><span class="p">,</span> <span class="n">stride</span><span class="p">)</span>
-                    <span class="n">pad</span> <span class="o">=</span> <span class="p">(</span><span class="n">out_filter</span> <span class="o">-</span> <span class="n">in_filter</span><span class="p">)</span> <span class="o">//</span> <span class="mi">2</span>
-                    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_data_format</span> <span class="o">==</span> <span class="s1">&#39;channels_first&#39;</span><span class="p">:</span>
-                        <span class="n">orig_x</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">pad</span><span class="p">(</span><span class="n">orig_x</span><span class="p">,</span> <span class="p">[[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="p">[</span><span class="n">pad</span><span class="p">,</span> <span class="n">pad</span><span class="p">],</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]])</span>
-                    <span class="k">else</span><span class="p">:</span>
-                        <span class="n">orig_x</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">pad</span><span class="p">(</span><span class="n">orig_x</span><span class="p">,</span> <span class="p">[[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="p">[</span><span class="n">pad</span><span class="p">,</span> <span class="n">pad</span><span class="p">]])</span>
-
-                <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_relu</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">orig_x</span><span class="p">))</span>
-
-                <span class="n">tf</span><span class="o">.</span><span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;image after unit </span><span class="si">%s</span><span class="s1">: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">name_scope</span><span class="p">,</span> <span class="n">x</span><span class="o">.</span><span class="n">get_shape</span><span class="p">())</span>
-                <span class="k">return</span> <span class="n">x</span>
-
-        <span class="k">def</span> <span class="nf">_conv</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">kernel_size</span><span class="p">,</span> <span class="n">filters</span><span class="p">,</span> <span class="n">strides</span><span class="p">,</span> <span class="n">is_atrous</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
-            <span class="sd">&quot;&quot;&quot;Convolution.&quot;&quot;&quot;</span>
-
-            <span class="n">padding</span> <span class="o">=</span> <span class="s1">&#39;SAME&#39;</span>
-            <span class="k">if</span> <span class="ow">not</span> <span class="n">is_atrous</span> <span class="ow">and</span> <span class="n">strides</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
-                <span class="n">pad</span> <span class="o">=</span> <span class="n">kernel_size</span> <span class="o">-</span> <span class="mi">1</span>
-                <span class="n">pad_beg</span> <span class="o">=</span> <span class="n">pad</span> <span class="o">//</span> <span class="mi">2</span>
-                <span class="n">pad_end</span> <span class="o">=</span> <span class="n">pad</span> <span class="o">-</span> <span class="n">pad_beg</span>
-                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_data_format</span> <span class="o">==</span> <span class="s1">&#39;channels_first&#39;</span><span class="p">:</span>
-                    <span class="n">x</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">pad</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="p">[[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="p">[</span><span class="n">pad_beg</span><span class="p">,</span> <span class="n">pad_end</span><span class="p">],</span> <span class="p">[</span><span class="n">pad_beg</span><span class="p">,</span> <span class="n">pad_end</span><span class="p">]])</span>
-                <span class="k">else</span><span class="p">:</span>
-                    <span class="n">x</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">pad</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="p">[[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="p">[</span><span class="n">pad_beg</span><span class="p">,</span> <span class="n">pad_end</span><span class="p">],</span> <span class="p">[</span><span class="n">pad_beg</span><span class="p">,</span> <span class="n">pad_end</span><span class="p">],</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]])</span>
-                <span class="n">padding</span> <span class="o">=</span> <span class="s1">&#39;VALID&#39;</span>
-            <span class="k">return</span> <span class="n">tf</span><span class="o">.</span><span class="n">layers</span><span class="o">.</span><span class="n">conv2d</span><span class="p">(</span>
-                <span class="n">inputs</span><span class="o">=</span><span class="n">x</span><span class="p">,</span>
-                <span class="n">kernel_size</span><span class="o">=</span><span class="n">kernel_size</span><span class="p">,</span>
-                <span class="n">filters</span><span class="o">=</span><span class="n">filters</span><span class="p">,</span>
-                <span class="n">strides</span><span class="o">=</span><span class="n">strides</span><span class="p">,</span>
-                <span class="n">padding</span><span class="o">=</span><span class="n">padding</span><span class="p">,</span>
-                <span class="n">use_bias</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-                <span class="n">data_format</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_data_format</span><span class="p">)</span>
-
-        <span class="k">def</span> <span class="nf">_batch_norm</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
-            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_data_format</span> <span class="o">==</span> <span class="s1">&#39;channels_first&#39;</span><span class="p">:</span>
-                <span class="n">data_format</span> <span class="o">=</span> <span class="s1">&#39;NCHW&#39;</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">data_format</span> <span class="o">=</span> <span class="s1">&#39;NHWC&#39;</span>
-            <span class="k">return</span> <span class="n">tf</span><span class="o">.</span><span class="n">contrib</span><span class="o">.</span><span class="n">layers</span><span class="o">.</span><span class="n">batch_norm</span><span class="p">(</span>
-                <span class="n">x</span><span class="p">,</span>
-                <span class="n">decay</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_batch_norm_decay</span><span class="p">,</span>
-                <span class="n">center</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-                <span class="n">scale</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-                <span class="n">epsilon</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_batch_norm_epsilon</span><span class="p">,</span>
-                <span class="n">is_training</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_is_training</span><span class="p">,</span>
-                <span class="n">fused</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-                <span class="n">data_format</span><span class="o">=</span><span class="n">data_format</span><span class="p">)</span>
-
-        <span class="k">def</span> <span class="nf">_relu</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
-            <span class="k">return</span> <span class="n">tf</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">relu</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
-
-        <span class="k">def</span> <span class="nf">_fully_connected</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">out_dim</span><span class="p">):</span>
-            <span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">name_scope</span><span class="p">(</span><span class="s1">&#39;fully_connected&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">name_scope</span><span class="p">:</span>
-                <span class="n">x</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">layers</span><span class="o">.</span><span class="n">dense</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">out_dim</span><span class="p">)</span>
-
-            <span class="n">tf</span><span class="o">.</span><span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;image after unit </span><span class="si">%s</span><span class="s1">: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">name_scope</span><span class="p">,</span> <span class="n">x</span><span class="o">.</span><span class="n">get_shape</span><span class="p">())</span>
-            <span class="k">return</span> <span class="n">x</span>
-
-        <span class="k">def</span> <span class="nf">_avg_pool</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">pool_size</span><span class="p">,</span> <span class="n">stride</span><span class="p">):</span>
-            <span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">name_scope</span><span class="p">(</span><span class="s1">&#39;avg_pool&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">name_scope</span><span class="p">:</span>
-                <span class="n">x</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">layers</span><span class="o">.</span><span class="n">average_pooling2d</span><span class="p">(</span>
-                    <span class="n">x</span><span class="p">,</span> <span class="n">pool_size</span><span class="p">,</span> <span class="n">stride</span><span class="p">,</span> <span class="s1">&#39;SAME&#39;</span><span class="p">,</span> <span class="n">data_format</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_data_format</span><span class="p">)</span>
-
-            <span class="n">tf</span><span class="o">.</span><span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;image after unit </span><span class="si">%s</span><span class="s1">: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">name_scope</span><span class="p">,</span> <span class="n">x</span><span class="o">.</span><span class="n">get_shape</span><span class="p">())</span>
-            <span class="k">return</span> <span class="n">x</span>
-
-        <span class="k">def</span> <span class="nf">_global_avg_pool</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
-            <span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">name_scope</span><span class="p">(</span><span class="s1">&#39;global_avg_pool&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">name_scope</span><span class="p">:</span>
-                <span class="k">assert</span> <span class="n">x</span><span class="o">.</span><span class="n">get_shape</span><span class="p">()</span><span class="o">.</span><span class="n">ndims</span> <span class="o">==</span> <span class="mi">4</span>
-                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_data_format</span> <span class="o">==</span> <span class="s1">&#39;channels_first&#39;</span><span class="p">:</span>
-                    <span class="n">x</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">reduce_mean</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">])</span>
-                <span class="k">else</span><span class="p">:</span>
-                    <span class="n">x</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">reduce_mean</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">])</span>
-            <span class="n">tf</span><span class="o">.</span><span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;image after unit </span><span class="si">%s</span><span class="s1">: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">name_scope</span><span class="p">,</span> <span class="n">x</span><span class="o">.</span><span class="n">get_shape</span><span class="p">())</span>
-            <span class="k">return</span> <span class="n">x</span>
-
-    <span class="c1">####################################### end Resnet base model definition ######################################</span>
-
-    <span class="c1">####################################### start cifar resnet subclassing ########################################</span>
-
-    <span class="k">class</span> <span class="nc">ResNetCifar10</span><span class="p">(</span><span class="n">ResNet</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Cifar10 model with ResNetV1 and basic residual block.&quot;&quot;&quot;</span>
-
-        <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
-                     <span class="n">num_layers</span><span class="p">,</span>
-                     <span class="n">is_training</span><span class="p">,</span>
-                     <span class="n">batch_norm_decay</span><span class="p">,</span>
-                     <span class="n">batch_norm_epsilon</span><span class="p">,</span>
-                     <span class="n">data_format</span><span class="o">=</span><span class="s1">&#39;channels_first&#39;</span><span class="p">):</span>
-            <span class="nb">super</span><span class="p">(</span><span class="n">ResNetCifar10</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
-                <span class="n">is_training</span><span class="p">,</span>
-                <span class="n">data_format</span><span class="p">,</span>
-                <span class="n">batch_norm_decay</span><span class="p">,</span>
-                <span class="n">batch_norm_epsilon</span>
-            <span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">n</span> <span class="o">=</span> <span class="p">(</span><span class="n">num_layers</span> <span class="o">-</span> <span class="mi">2</span><span class="p">)</span> <span class="o">//</span> <span class="mi">6</span>
-            <span class="c1"># Add one in case label starts with 1. No impact if label starts with 0.</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">num_classes</span> <span class="o">=</span> <span class="mi">5</span> <span class="o">+</span> <span class="mi">1</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">filters</span> <span class="o">=</span> <span class="p">[</span><span class="mi">16</span><span class="p">,</span> <span class="mi">16</span><span class="p">,</span> <span class="mi">32</span><span class="p">,</span> <span class="mi">64</span><span class="p">]</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">strides</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span>
-
-        <span class="k">def</span> <span class="nf">forward_pass</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">input_data_format</span><span class="o">=</span><span class="s1">&#39;channels_last&#39;</span><span class="p">):</span>
-            <span class="sd">&quot;&quot;&quot;Build the core model within the graph.&quot;&quot;&quot;</span>
-            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_data_format</span> <span class="o">!=</span> <span class="n">input_data_format</span><span class="p">:</span>
-                <span class="k">if</span> <span class="n">input_data_format</span> <span class="o">==</span> <span class="s1">&#39;channels_last&#39;</span><span class="p">:</span>
-                    <span class="c1"># Computation requires channels_first.</span>
-                    <span class="n">x</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">])</span>
-                <span class="k">else</span><span class="p">:</span>
-                    <span class="c1"># Computation requires channels_last.</span>
-                    <span class="n">x</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span>
-
-            <span class="c1"># Image standardization.</span>
-            <span class="n">x</span> <span class="o">=</span> <span class="n">x</span> <span class="o">/</span> <span class="mi">128</span> <span class="o">-</span> <span class="mi">1</span>
-
-            <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_conv</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">16</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
-            <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_batch_norm</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
-            <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_relu</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
-
-            <span class="c1"># Use basic (non-bottleneck) block and ResNet V1 (post-activation).</span>
-            <span class="n">res_func</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_residual_v1</span>
-
-            <span class="c1"># 3 stages of block stacking.</span>
-            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">):</span>
-                <span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">name_scope</span><span class="p">(</span><span class="s1">&#39;stage&#39;</span><span class="p">):</span>
-                    <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n</span><span class="p">):</span>
-                        <span class="k">if</span> <span class="n">j</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-                            <span class="c1"># First block in a stage, filters and strides may change.</span>
-                            <span class="n">x</span> <span class="o">=</span> <span class="n">res_func</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">filters</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">filters</span><span class="p">[</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">],</span>
-                                         <span class="bp">self</span><span class="o">.</span><span class="n">strides</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
-                        <span class="k">else</span><span class="p">:</span>
-                            <span class="c1"># Following blocks in a stage, constant filters and unit stride.</span>
-                            <span class="n">x</span> <span class="o">=</span> <span class="n">res_func</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">filters</span><span class="p">[</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">filters</span><span class="p">[</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">],</span> <span class="mi">1</span><span class="p">)</span>
-
-            <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_global_avg_pool</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
-            <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fully_connected</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_classes</span><span class="p">)</span>
-
-            <span class="k">return</span> <span class="n">x</span>
-    <span class="c1">####################################### end cifar resnet subclassing ########################################</span>
-
-    <span class="c1">####################################### start loss etc definitions ##########################################</span>
-
-    <span class="n">num_layers</span> <span class="o">=</span> <span class="mi">44</span>
-    <span class="n">batch_norm_decay</span> <span class="o">=</span> <span class="mf">0.997</span>
-    <span class="n">batch_norm_epsilon</span> <span class="o">=</span> <span class="mf">1e-5</span>
-    <span class="n">weight_decay</span> <span class="o">=</span> <span class="mf">2e-4</span>
-    <span class="n">learning_rate</span> <span class="o">=</span> <span class="mf">0.1</span>
-
-    <span class="n">is_training</span> <span class="o">=</span> <span class="p">(</span><span class="n">mode</span> <span class="o">==</span> <span class="n">tf</span><span class="o">.</span><span class="n">estimator</span><span class="o">.</span><span class="n">ModeKeys</span><span class="o">.</span><span class="n">TRAIN</span><span class="p">)</span>
-
-    <span class="n">model</span> <span class="o">=</span> <span class="n">ResNetCifar10</span><span class="p">(</span>
-        <span class="n">num_layers</span><span class="p">,</span>
-        <span class="n">batch_norm_decay</span><span class="o">=</span><span class="n">batch_norm_decay</span><span class="p">,</span>
-        <span class="n">batch_norm_epsilon</span><span class="o">=</span><span class="n">batch_norm_epsilon</span><span class="p">,</span>
-        <span class="n">is_training</span><span class="o">=</span><span class="n">is_training</span><span class="p">,</span>
-        <span class="n">data_format</span><span class="o">=</span><span class="s2">&quot;channels_last&quot;</span><span class="p">)</span>
-
-    <span class="n">data</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">feature_column</span><span class="o">.</span><span class="n">input_layer</span><span class="p">(</span><span class="n">features</span><span class="p">,</span> <span class="p">[</span><span class="n">tf</span><span class="o">.</span><span class="n">feature_column</span><span class="o">.</span><span class="n">numeric_column</span><span class="p">(</span><span class="s2">&quot;data&quot;</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="mi">32</span><span class="p">,</span><span class="mi">32</span><span class="p">,</span><span class="mi">3</span><span class="p">))])</span>
-    <span class="n">data</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="mi">32</span><span class="p">,</span><span class="mi">32</span><span class="p">,</span><span class="mi">3</span><span class="p">))</span>
-    <span class="n">logits</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">forward_pass</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">input_data_format</span><span class="o">=</span><span class="s1">&#39;channels_last&#39;</span><span class="p">)</span>
-
-    <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="n">tf</span><span class="o">.</span><span class="n">estimator</span><span class="o">.</span><span class="n">ModeKeys</span><span class="o">.</span><span class="n">PREDICT</span><span class="p">:</span>
-        <span class="n">predictions</span> <span class="o">=</span> <span class="p">{</span>
-            <span class="s1">&#39;class_ids&#39;</span><span class="p">:</span> <span class="n">tf</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="nb">input</span><span class="o">=</span><span class="n">logits</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">),</span>
-            <span class="s1">&#39;probabilities&#39;</span><span class="p">:</span> <span class="n">tf</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">softmax</span><span class="p">(</span><span class="n">logits</span><span class="p">),</span>
-            <span class="s1">&#39;logits&#39;</span><span class="p">:</span> <span class="n">logits</span><span class="p">,</span>
-        <span class="p">}</span>
-        <span class="k">return</span> <span class="n">tf</span><span class="o">.</span><span class="n">estimator</span><span class="o">.</span><span class="n">EstimatorSpec</span><span class="p">(</span><span class="n">mode</span><span class="p">,</span> <span class="n">predictions</span><span class="o">=</span><span class="n">predictions</span><span class="p">)</span>
-
-    <span class="n">loss</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">losses</span><span class="o">.</span><span class="n">sparse_softmax_cross_entropy</span><span class="p">(</span><span class="n">logits</span><span class="o">=</span><span class="n">logits</span><span class="p">,</span> <span class="n">labels</span><span class="o">=</span><span class="n">labels</span><span class="p">)</span>
-    <span class="n">loss</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">reduce_mean</span><span class="p">(</span><span class="n">loss</span><span class="p">)</span>
-    <span class="n">model_params</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">trainable_variables</span><span class="p">()</span>
-    <span class="n">loss</span> <span class="o">+=</span> <span class="n">weight_decay</span> <span class="o">*</span> <span class="n">tf</span><span class="o">.</span><span class="n">add_n</span><span class="p">([</span><span class="n">tf</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">l2_loss</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">model_params</span><span class="p">])</span>
-
-    <span class="c1">####################################### end loss etc definitions ############################################</span>
-    <span class="c1"># Compute evaluation metrics.</span>
-    <span class="n">accuracy</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">metrics</span><span class="o">.</span><span class="n">accuracy</span><span class="p">(</span><span class="n">labels</span><span class="o">=</span><span class="n">labels</span><span class="p">,</span> <span class="n">predictions</span><span class="o">=</span><span class="n">tf</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">logits</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">),</span>
-                                   <span class="n">name</span><span class="o">=</span><span class="s1">&#39;acc_op&#39;</span><span class="p">)</span>
-    <span class="n">metrics</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;accuracy&#39;</span><span class="p">:</span> <span class="n">accuracy</span><span class="p">}</span>
-    <span class="n">tf</span><span class="o">.</span><span class="n">summary</span><span class="o">.</span><span class="n">scalar</span><span class="p">(</span><span class="s1">&#39;accuracy&#39;</span><span class="p">,</span> <span class="n">accuracy</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
-    <span class="c1"># TODO tf.summary.scalar(&#39;accuracy&#39;, accuracy[1])</span>
-
-    <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="n">tf</span><span class="o">.</span><span class="n">estimator</span><span class="o">.</span><span class="n">ModeKeys</span><span class="o">.</span><span class="n">EVAL</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">tf</span><span class="o">.</span><span class="n">estimator</span><span class="o">.</span><span class="n">EstimatorSpec</span><span class="p">(</span> <span class="n">mode</span><span class="p">,</span> <span class="n">loss</span><span class="o">=</span><span class="n">loss</span><span class="p">,</span> <span class="n">eval_metric_ops</span><span class="o">=</span><span class="n">metrics</span><span class="p">)</span>
-
-    <span class="c1"># Create training op.</span>
-    <span class="k">assert</span> <span class="n">mode</span> <span class="o">==</span> <span class="n">tf</span><span class="o">.</span><span class="n">estimator</span><span class="o">.</span><span class="n">ModeKeys</span><span class="o">.</span><span class="n">TRAIN</span>
-    <span class="c1">#FIXME</span>
-    <span class="n">num_batches_per_epoch</span> <span class="o">=</span> <span class="mi">45000</span> <span class="o">//</span> <span class="mi">64</span>  <span class="c1"># * num_workers)</span>
-    <span class="n">boundaries</span> <span class="o">=</span> <span class="p">[</span> <span class="n">num_batches_per_epoch</span> <span class="o">*</span> <span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">82</span><span class="p">,</span> <span class="mi">123</span><span class="p">,</span> <span class="mi">300</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)]</span>
-    <span class="n">staged_lr</span> <span class="o">=</span> <span class="p">[</span><span class="n">learning_rate</span> <span class="o">*</span> <span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">,</span> <span class="mf">0.01</span><span class="p">,</span> <span class="mf">0.002</span><span class="p">]]</span>
-    <span class="n">learning_rate</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">train</span><span class="o">.</span><span class="n">piecewise_constant</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">train</span><span class="o">.</span><span class="n">get_global_step</span><span class="p">(),</span> <span class="n">boundaries</span><span class="p">,</span> <span class="n">staged_lr</span><span class="p">)</span>
-    <span class="n">optimizer</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">train</span><span class="o">.</span><span class="n">MomentumOptimizer</span><span class="p">(</span><span class="n">learning_rate</span><span class="o">=</span><span class="n">learning_rate</span><span class="p">,</span> <span class="n">momentum</span><span class="o">=</span><span class="mf">0.9</span><span class="p">)</span>
-
-    <span class="c1"># optimizer = tf.train.SyncReplicasOptimizer(optimizer, 4, 4)</span>
-    <span class="c1"># optimizer.make_session_run_hook()</span>
-
-    <span class="n">global_step</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">train</span><span class="o">.</span><span class="n">get_global_step</span><span class="p">()</span>
-    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Device is&quot;</span><span class="p">)</span>
-    <span class="nb">print</span><span class="p">(</span><span class="n">global_step</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
-    <span class="n">train_op</span> <span class="o">=</span> <span class="n">optimizer</span><span class="o">.</span><span class="n">minimize</span><span class="p">(</span><span class="n">loss</span><span class="p">,</span> <span class="n">global_step</span><span class="o">=</span><span class="n">global_step</span><span class="p">)</span>
-
-
-    <span class="n">update_ops</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">get_collection</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">GraphKeys</span><span class="o">.</span><span class="n">UPDATE_OPS</span><span class="p">)</span>
-    <span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">control_dependencies</span><span class="p">(</span><span class="n">update_ops</span><span class="p">):</span>
-        <span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">control_dependencies</span><span class="p">([</span><span class="n">train_op</span><span class="p">]):</span>
-            <span class="n">train_op</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">Print</span><span class="p">(</span><span class="n">global_step</span><span class="p">,</span> <span class="p">[</span><span class="n">global_step</span><span class="p">])</span>
-
-    <span class="k">return</span> <span class="n">tf</span><span class="o">.</span><span class="n">estimator</span><span class="o">.</span><span class="n">EstimatorSpec</span><span class="p">(</span><span class="n">mode</span><span class="p">,</span> <span class="n">loss</span><span class="o">=</span><span class="n">loss</span><span class="p">,</span> <span class="n">train_op</span><span class="o">=</span><span class="n">train_op</span><span class="p">,</span> <span class="n">training_chief_hooks</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+<div class=" highlight hl-ipython3"><pre><span></span><span class="n">user_name</span> <span class="o">=</span> <span class="s2">&quot;admin&quot;</span>
 </pre></div>
 
     </div>
@@ -13595,7 +13210,25 @@ In this function, we download the CIFAR-10 data, load TFRecordDataset from it an
 <div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
 </div><div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<h3 id="Run-the-job">Run the job<a class="anchor-link" href="#Run-the-job">&#182;</a></h3><p>Below we run this setup for 5000 iterations and two workers. We save this model under the name "Cifar10_Odd_Classes_5000_Iters". Later in <a href="2_TransferLearning.ipynb">TransferLearning Notebook</a>, we will look this up and transfer from this model.</p>
+<p><a id='create_dataset'></a></p>
+<h1 id="Create-DataSet"><em>Create DataSet</em><a class="anchor-link" href="#Create-DataSet">&#182;</a></h1><div align="right"><a href="#top">BackToTheTop</a></div>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+</div><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p><strong><em>sbrain.dataset.DataSetImageClassification</em></strong> is an abstraction which supports creating and handling of image dataset for classification model training.</p>
+<p>DataSetImageClassification construtor takes the <strong><em>name</em></strong> of the parameter as input.</p>
+<p><strong><em>DataSetImageClassification.create()</em></strong> method takes following parameters:</p>
+<ul>
+<li><strong>source_archive_path</strong> : the path to the folder containing the images and labels. </li>
+<li><strong>classes</strong> : [optional] a dict with class names in the dataset as the keys and class ids as values</li>
+<li><strong>collection_date</strong> : date of collection of data in string format <strong><em>mm-dd-yyyy</em></strong></li>
+<li><strong>image_iterator</strong> : function returning an iterator to the list of path of images in the archive</li>
+<li><strong>label_iterator</strong> : function returning an iterator. Each element returned by iterator is 
+a tuple (image name, class id)</li>
+</ul>
 
 </div>
 </div>
@@ -13605,32 +13238,78 @@ In this function, we download the CIFAR-10 data, load TFRecordDataset from it an
 <div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
 <div class="inner_cell">
     <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span></span><span class="n">estimator</span> <span class="o">=</span> <span class="n">Estimator</span><span class="o">.</span><span class="n">NewClassificationEstimator</span><span class="p">(</span><span class="n">model_fn</span><span class="o">=</span><span class="n">cifar_model_function</span><span class="p">)</span>
-<span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;CIFAR10_odd_class_estimator&quot;</span>
-<span class="n">estimator</span> <span class="o">=</span> <span class="n">Estimator</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="s2">&quot;Resnet Cifar10 estimator&quot;</span><span class="p">,</span> <span class="n">estimator</span><span class="p">)</span>
+<div class=" highlight hl-ipython3"><pre><span></span><span class="kn">import</span> <span class="nn">time</span>
+<span class="k">def</span> <span class="nf">unique_id</span><span class="p">():</span>
+    <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()))</span>
+</pre></div>
 
-<span class="n">hyper_parameters</span> <span class="o">=</span> <span class="n">HParams</span><span class="p">(</span><span class="n">iterations</span><span class="o">=</span><span class="mi">5000</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="mi">128</span><span class="p">)</span>
-<span class="n">rc</span> <span class="o">=</span> <span class="n">RunConfig</span><span class="p">(</span><span class="n">no_of_ps</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">no_of_workers</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">run_eval</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">use_gpu</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    </div>
+</div>
+</div>
 
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="c1"># defining classes</span>
 
-<span class="n">odd_class_experiment_name</span> <span class="o">=</span> <span class="s2">&quot;Cifar10_Odd_Classes_5000_Iterations&quot;</span>
-<span class="n">experiment</span> <span class="o">=</span> <span class="n">Experiment</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">experiment_name</span><span class="o">=</span><span class="n">odd_class_experiment_name</span><span class="p">,</span>
-                     <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Cifar10 Odd classes Model&quot;</span><span class="p">,</span>
-                     <span class="n">estimator</span><span class="o">=</span><span class="n">estimator</span><span class="p">,</span>
-                     <span class="n">hyper_parameters</span><span class="o">=</span><span class="n">hyper_parameters</span><span class="p">,</span>
-                     <span class="n">run_config</span><span class="o">=</span><span class="n">rc</span><span class="p">,</span>
-                     <span class="n">dataset_version_split</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                     <span class="n">input_function</span><span class="o">=</span><span class="n">only_odd_classes_input_function</span><span class="p">)</span>
-<span class="n">job</span> <span class="o">=</span> <span class="n">experiment</span><span class="o">.</span><span class="n">get_single_job</span><span class="p">()</span>
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;tensorboard url&quot;</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">get_tensorboard_url</span><span class="p">())</span>
+<span class="n">classes</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s1">&#39;airplane&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+                <span class="s1">&#39;automobile&#39;</span><span class="p">:</span><span class="mi">1</span><span class="p">,</span>
+                <span class="s1">&#39;bird&#39;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>
+                <span class="s1">&#39;cat&#39;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span>
+                <span class="s1">&#39;deer&#39;</span><span class="p">:</span> <span class="mi">4</span><span class="p">,</span>
+                <span class="s1">&#39;dog&#39;</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span>
+                <span class="s1">&#39;frog&#39;</span><span class="p">:</span> <span class="mi">6</span><span class="p">,</span>
+                <span class="s1">&#39;horse&#39;</span><span class="p">:</span> <span class="mi">7</span><span class="p">,</span>
+                <span class="s1">&#39;ship&#39;</span><span class="p">:</span> <span class="mi">8</span><span class="p">,</span>
+                <span class="s1">&#39;truck&#39;</span><span class="p">:</span> <span class="mi">9</span>
+            <span class="p">}</span>
+</pre></div>
 
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Has the job finished? </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">has_finished</span><span class="p">()))</span>
+    </div>
+</div>
+</div>
 
-<span class="n">job</span><span class="o">.</span><span class="n">wait_until_finish</span><span class="p">()</span>
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="c1"># defining iterator to get image file paths</span>
 
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Model metrics..&quot;</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">get_model</span><span class="p">()</span><span class="o">.</span><span class="n">model_metrics</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">iterator_images</span><span class="p">(</span><span class="n">data_root_path</span><span class="p">):</span>
+    <span class="kn">import</span> <span class="nn">glob</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">files</span> <span class="o">=</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{}</span><span class="s2">/*.*&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">data_root_path</span><span class="p">))</span>
+    <span class="k">return</span> <span class="nb">iter</span><span class="p">(</span><span class="n">files</span><span class="p">)</span>
+
+<span class="c1"># defining iterator to get tuples (image_name, class_id) e.g. (xyz.jpeg,1)</span>
+<span class="k">def</span> <span class="nf">iterator_labels</span><span class="p">(</span><span class="n">data_root_path</span><span class="p">):</span>
+    <span class="kn">import</span> <span class="nn">glob</span>
+    <span class="n">files</span> <span class="o">=</span> <span class="n">glob</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{}</span><span class="s2">/*.*&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">data_root_path</span><span class="p">))</span>
+    <span class="n">labels</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">classes</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s1">&#39;airplane&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+                <span class="s1">&#39;automobile&#39;</span><span class="p">:</span><span class="mi">1</span><span class="p">,</span>
+                <span class="s1">&#39;bird&#39;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>
+                <span class="s1">&#39;cat&#39;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span>
+                <span class="s1">&#39;deer&#39;</span><span class="p">:</span> <span class="mi">4</span><span class="p">,</span>
+                <span class="s1">&#39;dog&#39;</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span>
+                <span class="s1">&#39;frog&#39;</span><span class="p">:</span> <span class="mi">6</span><span class="p">,</span>
+                <span class="s1">&#39;horse&#39;</span><span class="p">:</span> <span class="mi">7</span><span class="p">,</span>
+                <span class="s1">&#39;ship&#39;</span><span class="p">:</span> <span class="mi">8</span><span class="p">,</span>
+                <span class="s1">&#39;truck&#39;</span><span class="p">:</span> <span class="mi">9</span>
+            <span class="p">}</span>
+    <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">files</span><span class="p">:</span>
+        <span class="n">img_name</span> <span class="o">=</span>  <span class="n">f</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;/&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">:][</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">lbl_str</span> <span class="o">=</span> <span class="n">img_name</span><span class="p">[</span><span class="n">img_name</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s1">&#39;_&#39;</span><span class="p">)</span><span class="o">+</span><span class="mi">1</span><span class="p">:</span><span class="n">img_name</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)]</span>
+        <span class="n">lbl_id</span> <span class="o">=</span> <span class="n">classes</span><span class="p">[</span><span class="n">lbl_str</span><span class="p">]</span>
+        <span class="n">labels</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">img_name</span><span class="p">,</span> <span class="n">lbl_id</span><span class="p">))</span>    
+    <span class="k">return</span> <span class="nb">iter</span><span class="p">(</span><span class="n">labels</span><span class="p">)</span>
 </pre></div>
 
     </div>
@@ -13641,7 +13320,9 @@ In this function, we download the CIFAR-10 data, load TFRecordDataset from it an
 <div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
 </div><div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<p>We are done!!</p>
+<h4 id="DataSet.create()-will-return-a-DataSetExtractionJob-object">DataSet.create() will return a DataSetExtractionJob object<a class="anchor-link" href="#DataSet.create()-will-return-a-DataSetExtractionJob-object">&#182;</a></h4><p>The job object can be used to track the progress of DataSet creation.</p>
+<p>job.getdataset() will return a DataSet object that's a handle to the new dataset created</p>
+<h4 id="NOTE:">NOTE:<a class="anchor-link" href="#NOTE:">&#182;</a></h4><p><strong>job.cancel()</strong> api can be used any time to cancel the dataset creation job.</p>
 
 </div>
 </div>
@@ -13651,13 +13332,647 @@ In this function, we download the CIFAR-10 data, load TFRecordDataset from it an
 <div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
 <div class="inner_cell">
     <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span></span> 
+<div class=" highlight hl-ipython3"><pre><span></span><span class="c1"># creating dataset</span>
+
+<span class="n">dataset_name</span> <span class="o">=</span> <span class="s2">&quot;cifar10-small-</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">unique_id</span><span class="p">())</span>
+
+<span class="n">job</span> <span class="o">=</span> <span class="n">DataSetImageClassification</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">dataset_name</span><span class="p">)</span><span class="o">.</span><span class="n">create</span><span class="p">(</span>
+    <span class="n">description</span> <span class="o">=</span> <span class="s2">&quot;Dataset with subset images from cifar 10 dataset&quot;</span><span class="p">,</span>
+    <span class="n">source_archive_path</span> <span class="o">=</span> <span class="s2">&quot;shared-dir/sample-notebooks/demo-data/cifar10_small&quot;</span><span class="p">,</span>
+    <span class="n">classes</span><span class="o">=</span><span class="n">classes</span><span class="p">,</span>
+    <span class="n">collection_date</span><span class="o">=</span><span class="s2">&quot;07-25-2018&quot;</span><span class="p">,</span>
+    <span class="n">image_iterator</span><span class="o">=</span><span class="n">iterator_images</span><span class="p">,</span>
+    <span class="n">label_iterator</span><span class="o">=</span><span class="n">iterator_labels</span>
+<span class="p">)</span>
+
+<span class="c1">#Check Job Status</span>
+
+<span class="k">while</span> <span class="n">job</span><span class="o">.</span><span class="n">status</span> <span class="o">!=</span> <span class="n">JobStatus</span><span class="o">.</span><span class="n">COMPLETE</span><span class="o">.</span><span class="n">value</span> <span class="ow">and</span> <span class="n">job</span><span class="o">.</span><span class="n">status</span> <span class="o">!=</span> <span class="n">JobStatus</span><span class="o">.</span><span class="n">FAILED</span><span class="o">.</span><span class="n">value</span><span class="p">:</span>
+    <span class="n">clear_output</span><span class="p">(</span><span class="n">wait</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">job</span> <span class="o">=</span> <span class="n">job</span><span class="o">.</span><span class="n">get_status</span><span class="p">()</span>
+    <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
 </pre></div>
 
     </div>
 </div>
 </div>
 
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="n">ds</span> <span class="o">=</span> <span class="n">job</span><span class="o">.</span><span class="n">get_dataset</span><span class="p">()</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
+
+</div>
+<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+</div><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p><a id='search_datasets'></a></p>
+<h1 id="Search-And-Retrieve-Existing-DataSets"><em>Search And Retrieve Existing DataSets</em><a class="anchor-link" href="#Search-And-Retrieve-Existing-DataSets">&#182;</a></h1><div align="right"><a href="#top">BackToTheTop</a></div>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+</div><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p><strong><em>DataSetImageClassification.search()</em></strong> api helps to search for existing datasets using</p>
+<ul>
+<li><strong>author</strong> : name of the user who created dataset and/or </li>
+<li><strong>name</strong> : name of the dataset and/or </li>
+<li><strong>description</strong> : keywords in description 
+<br>DataSets which partially match any of the given parameters are returned.</li>
+</ul>
+<p><strong><em>DataSetImageClassification.lookup()</em></strong> can be used to retrieve a dataset object using dataset name. The name needs to match exactly.</p>
+
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="c1"># list all the images which belong to a user for example</span>
+<span class="c1"># datasets can also be searched by partial names or desciptions</span>
+
+<span class="n">DataSetImageClassification</span><span class="o">.</span><span class="n">search</span><span class="p">(</span> <span class="n">author</span> <span class="o">=</span> <span class="n">user_name</span> <span class="p">)</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
+
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="c1"># lookup returns a DataSetImageClassification object that can be used to search versions. </span>
+<span class="n">ds</span> <span class="o">=</span> <span class="n">DataSetImageClassification</span><span class="o">.</span><span class="n">lookup</span><span class="p">(</span><span class="n">dataset_name</span><span class="p">)</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
+
+</div>
+<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+</div><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p><a id='search_versions'></a></p>
+<h1 id="Search-And-Retrieve-DataSet-Versions"><em>Search And Retrieve DataSet Versions</em><a class="anchor-link" href="#Search-And-Retrieve-DataSet-Versions">&#182;</a></h1><p><strong><strong>DataSetImageClassification.search_versions()</strong></strong> can be used to lookup and list out all dataset versions derived from the given dataset using</p>
+<ul>
+<li><strong><strong>'version_author'</strong></strong> i.e. name of the user who created dataset and/or </li>
+<li><strong><strong>'version_name'</strong></strong> i.e. name of the dataset and/or </li>
+<li><strong><strong>'version_description'</strong></strong>. 
+<br>DataSet Versions which partially match any of the given parameters are returned.</li>
+</ul>
+<p><strong><strong>DataSetImageClassification.version()</strong></strong> can be used to retrieve a particular <strong>DataSetVersion</strong> by name</p>
+<div align="right"><a href="#top">BackToTheTop</a></div>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="c1"># list all the versions of the dataset which satisfy the given search criteria</span>
+<span class="c1"># this will print out the details of those versions</span>
+
+<span class="n">ds</span><span class="o">.</span><span class="n">search_versions</span><span class="p">(</span><span class="n">version_author</span> <span class="o">=</span> <span class="n">user_name</span><span class="p">)</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
+
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="n">DataSetVersion</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">author</span><span class="o">=</span> <span class="n">user_name</span><span class="p">,</span> <span class="n">dataset_name</span><span class="o">=</span><span class="n">dataset_name</span><span class="p">)</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
+
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="c1"># following method will return a DataSetVersion object </span>
+<span class="c1"># which can be used to invoke transformations or creating splits</span>
+<span class="c1"># Version &quot;v1&quot; is created by default when dataset is created</span>
+
+<span class="n">ds_version</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">version</span><span class="p">(</span><span class="s2">&quot;v1&quot;</span><span class="p">)</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
+
+</div>
+<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+</div><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p><a id='trans'></a></p>
+<h1 id="Transforming-DataSet-Versions-To-Generate-New-DataSet-Versions"><em>Transforming DataSet Versions To Generate New DataSet Versions</em><a class="anchor-link" href="#Transforming-DataSet-Versions-To-Generate-New-DataSet-Versions">&#182;</a></h1><div align="right"><a href="#top">BackToTheTop</a></div>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+</div><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p><a id='define_trans'></a>
+SBrain provides <strong><em>sbrain.dataset.Transformation</em></strong> abstraction that can be used to run transformations on a DataSetVersion at scale.</p>
+<h2 id="Defining-and-Saving-Transformations">Defining and Saving Transformations<a class="anchor-link" href="#Defining-and-Saving-Transformations">&#182;</a></h2><p>Define custom transactions as one or more classes, each of which will inherit from <strong><em>Transformation</em></strong> class as shown below.</p>
+<p><font color="red">IMPORTANT:</font></p>
+<ol>
+<li>The custom transformation needs to extend the sbrain.dataset.Transformation class</li>
+<li>And provide a 'process' method which takes in and gives out image as numpy array</li>
+<li>NOTE : Right now transformations support only open cv library.<div align="right"><a href="#top">BackToTheTop</a></div></li>
+</ol>
+
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+</div><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p>In the following example, user has written 2 different transformations, one to resize and one to flip the image.</p>
+
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="k">class</span> <span class="nc">Flip</span><span class="p">(</span><span class="n">Transformation</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">arr_in</span><span class="p">):</span>
+        <span class="n">rotated_image</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">flip</span><span class="p">(</span><span class="n">arr_in</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">rotated_image</span>
+    
+    
+<span class="k">class</span> <span class="nc">Resize</span><span class="p">(</span><span class="n">Transformation</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="o">**</span><span class="n">args</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">height</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="s2">&quot;height&quot;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">width</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="s2">&quot;width&quot;</span><span class="p">]</span>
+        
+
+    <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">arr_in</span><span class="p">):</span>
+        <span class="n">resized_img</span> <span class="o">=</span> <span class="n">cv2</span><span class="o">.</span><span class="n">resize</span><span class="p">(</span><span class="n">arr_in</span><span class="p">,</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">width</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">height</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">resized_img</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
+
+</div>
+<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+</div><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p><strong><em>Transformation.create()</em></strong> from base class, is used to save an instance of the transformation in the SBrain. Which can be reused by overriding the parameters.</p>
+
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="c1"># initialize and create a transformations</span>
+<span class="c1"># NOTE : unless the create method is called, the transformation is not saved in SBrain system, and can not be used </span>
+<span class="c1">#        transformation jobs</span>
+<span class="n">flip_transformation_name</span> <span class="o">=</span> <span class="s2">&quot;flip-</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">unique_id</span><span class="p">())</span>
+<span class="n">flip</span> <span class="o">=</span> <span class="n">Flip</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">flip_transformation_name</span><span class="p">)</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">author</span><span class="o">=</span><span class="n">user_name</span><span class="p">,</span>
+                                        <span class="n">description</span><span class="o">=</span><span class="s2">&quot;flipping the image&quot;</span><span class="p">)</span>
+
+
+<span class="n">resize_transformation_name</span> <span class="o">=</span> <span class="s2">&quot;resize-</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">unique_id</span><span class="p">())</span>
+<span class="n">resize</span> <span class="o">=</span> <span class="n">Resize</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">resize_transformation_name</span><span class="p">,</span> <span class="n">height</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">author</span><span class="o">=</span><span class="n">user_name</span><span class="p">,</span>
+                                        <span class="n">description</span><span class="o">=</span><span class="s2">&quot;resizing the image&quot;</span><span class="p">)</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
+
+</div>
+<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+</div><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p><a id='test_trans'></a></p>
+<h2 id="Testing-Set-of-Transformations-on-Single-Image">Testing Set of Transformations on Single Image<a class="anchor-link" href="#Testing-Set-of-Transformations-on-Single-Image">&#182;</a></h2><div align="right"><a href="#top">BackToTheTop</a></div>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+</div><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p>In the example we are showing one transformation. In practise there can be muliple such transformations that can be chained by calling dataset_version.transform(transformation_obj_1).transform(transformation_obj_2) and so on.</p>
+<p><strong>_TransformationSet.apply_to<em>file()</em></strong> can be used to test the transformations on a single file to see the results, as shown below:</p>
+
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="n">input_img</span> <span class="o">=</span> <span class="s2">&quot;../demo-data/cifar10_small/11102_horse.png&quot;</span>
+<span class="n">output_img</span> <span class="o">=</span> <span class="s2">&quot;../../11102_horse_transformed-</span><span class="si">{}</span><span class="s2">.png&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">unique_id</span><span class="p">())</span>
+<span class="n">TransformationSet</span><span class="o">.</span><span class="n">apply_to_file</span><span class="p">(</span><span class="n">src_path</span><span class="o">=</span><span class="n">input_img</span><span class="p">,</span>
+                                <span class="n">des_path</span><span class="o">=</span><span class="n">output_img</span><span class="p">,</span>
+                                <span class="n">transformations_set</span><span class="o">=</span><span class="p">[</span><span class="n">resize</span><span class="p">,</span><span class="n">flip</span><span class="p">])</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
+
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="kn">from</span> <span class="nn">matplotlib</span> <span class="k">import</span> <span class="n">pyplot</span> <span class="k">as</span> <span class="n">plt</span>
+<span class="kn">from</span> <span class="nn">skimage</span> <span class="k">import</span> <span class="n">io</span>
+<span class="o">%</span><span class="k">matplotlib</span> inline
+
+<span class="n">plt</span><span class="o">.</span><span class="n">subplot</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s1">&#39;before&#39;</span><span class="p">)</span>
+<span class="n">before</span> <span class="o">=</span> <span class="n">io</span><span class="o">.</span><span class="n">imread</span><span class="p">(</span><span class="n">input_img</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">before</span><span class="p">)</span>
+
+<span class="n">plt</span><span class="o">.</span><span class="n">subplot</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s1">&#39;after&#39;</span><span class="p">)</span>
+<span class="n">after</span> <span class="o">=</span> <span class="n">io</span><span class="o">.</span><span class="n">imread</span><span class="p">(</span><span class="n">output_img</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">after</span><span class="p">)</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
+
+</div>
+<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+</div><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p>Once the transformation is satisfactorily written and saved, it can be used to run transformation job on the entire dataset.</p>
+
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+</div><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p><a id='run_trans'></a></p>
+<h2 id="Running-Transformation-Job">Running Transformation Job<a class="anchor-link" href="#Running-Transformation-Job">&#182;</a></h2><p><strong><em>DataSetVersion.transform()</em></strong> takes a custom transformation object and returns a <strong><strong>TransformationSet</strong></strong> object.</p>
+<p>Multiple transform() calls on <strong><strong>TransformationSet</strong></strong> can be used to chain together the required transformations.</p>
+<p><strong><em>TransformationSet.run()</em></strong> deploys the transformation job on cluster.</p>
+<p>It takes the following args:</p>
+<ul>
+<li><strong>num_workers</strong>: number of workers to parallelize the transformation job</li>
+<li><strong>target_version</strong> : name of the resultant version</li>
+<li><strong>cores</strong>: number of cores to allocate for each worker. </li>
+<li><strong>memory</strong> : memory to be allocated for each worker.</li>
+</ul>
+<p>It returns:</p>
+<ul>
+<li><strong><em>TransformationJob</em></strong> object which is the handle to the job running on the cluster, and can be used to check status of the job.</li>
+</ul>
+<div align="right"><a href="#top">BackToTheTop</a></div><p><strong>TransformationJob.get_status()</strong> can be used to retrieve the current status of the job.</p>
+<p><strong>TransformationJob.cancel()</strong> can be used to cancel the job.</p>
+<p><font color="red">IMPORTANT:</font> Please make sure the DataSetVersion which is being transformed has status 'Complete'. You can see the status in the search result or DataSetVersion.status.</p>
+<h4 id="NOTE:">NOTE:<a class="anchor-link" href="#NOTE:">&#182;</a></h4><p>-- with the sample dataset transformation job takes around 2-3 mins</p>
+
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="c1"># the following code launches a transformation job on the cluster </span>
+<span class="c1">#and returns TransformationJob object</span>
+<span class="n">dataset_new_version_name</span> <span class="o">=</span> <span class="s2">&quot;flip-resized-100-100-</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">unique_id</span><span class="p">())</span>
+<span class="n">tj</span> <span class="o">=</span> <span class="n">ds_version</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">flip</span><span class="p">)</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">resize</span><span class="p">)</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">target_version</span><span class="o">=</span><span class="n">dataset_new_version_name</span><span class="p">,</span> <span class="n">num_workers</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+
+<span class="c1"># Check job status</span>
+<span class="n">status</span> <span class="o">=</span> <span class="n">tj</span><span class="o">.</span><span class="n">get_status</span><span class="p">()</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+<span class="k">while</span> <span class="n">status</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">!=</span> <span class="s1">&#39;complete&#39;</span><span class="p">:</span>
+    <span class="n">clear_output</span><span class="p">(</span><span class="n">wait</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">status</span> <span class="o">=</span> <span class="n">tj</span><span class="o">.</span><span class="n">get_status</span><span class="p">()</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+    <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
+
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="c1"># get the handle to the new version after transformation </span>
+<span class="n">ds_version_transformed</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">version</span><span class="p">(</span> <span class="n">version_name</span> <span class="o">=</span>  <span class="n">dataset_new_version_name</span><span class="p">)</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
+
+</div>
+<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+</div><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p>Lets look at a sample of images of versions before and after transformation</p>
+
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="kn">from</span> <span class="nn">matplotlib</span> <span class="k">import</span> <span class="n">pyplot</span> <span class="k">as</span> <span class="n">plt</span>
+<span class="kn">from</span> <span class="nn">skimage</span> <span class="k">import</span> <span class="n">io</span>
+<span class="o">%</span><span class="k">matplotlib</span> inline
+
+<span class="n">rows</span> <span class="o">=</span> <span class="mi">8</span>
+<span class="n">cols</span> <span class="o">=</span> <span class="mi">2</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">40</span><span class="p">,</span><span class="mi">50</span><span class="p">))</span>
+<span class="n">iter_before</span> <span class="o">=</span> <span class="n">ds_version</span><span class="o">.</span><span class="n">get_iterator</span><span class="p">()</span>
+<span class="n">iter_after</span> <span class="o">=</span> <span class="n">ds_version_transformed</span><span class="o">.</span><span class="n">get_iterator</span><span class="p">()</span>
+<span class="n">iter_before</span><span class="o">.</span><span class="n">reset_iterator</span><span class="p">()</span>
+<span class="n">iter_after</span><span class="o">.</span><span class="n">reset_iterator</span><span class="p">()</span>
+<span class="n">imgs_before</span> <span class="o">=</span> <span class="p">[</span><span class="n">img</span> <span class="k">for</span> <span class="n">img</span><span class="p">,</span><span class="n">lbl</span> <span class="ow">in</span> <span class="n">iter_before</span><span class="o">.</span><span class="n">next_batch</span><span class="p">(</span><span class="mi">8</span><span class="p">)]</span>
+<span class="n">imgs_after</span> <span class="o">=</span> <span class="p">[</span><span class="n">img</span> <span class="k">for</span> <span class="n">img</span><span class="p">,</span><span class="n">lbl</span> <span class="ow">in</span> <span class="n">iter_after</span><span class="o">.</span><span class="n">next_batch</span><span class="p">(</span><span class="mi">8</span><span class="p">)]</span> 
+<span class="n">imgs_before</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">imgs_before</span><span class="p">)</span>
+<span class="n">imgs_after</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">imgs_after</span><span class="p">)</span>
+<span class="n">idx</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">8</span><span class="p">):</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">subplot</span><span class="p">(</span><span class="n">rows</span><span class="p">,</span> <span class="n">cols</span><span class="p">,</span> <span class="n">idx</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s1">&#39;before&#39;</span><span class="p">)</span>
+    <span class="n">before</span> <span class="o">=</span> <span class="n">io</span><span class="o">.</span><span class="n">imread</span><span class="p">(</span><span class="n">imgs_before</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+    <span class="c1"># print(before.shape)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">before</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">subplot</span><span class="p">(</span><span class="n">rows</span><span class="p">,</span> <span class="n">cols</span><span class="p">,</span> <span class="n">idx</span> <span class="o">+</span> <span class="mi">2</span><span class="p">)</span>
+    <span class="n">h</span><span class="p">,</span><span class="n">w</span><span class="p">,</span><span class="n">_</span> <span class="o">=</span> <span class="n">before</span><span class="o">.</span><span class="n">shape</span>
+    <span class="n">ar</span> <span class="o">=</span> <span class="n">h</span><span class="o">/</span><span class="n">w</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s1">&#39;after&#39;</span><span class="p">)</span>
+    <span class="n">after</span> <span class="o">=</span> <span class="n">io</span><span class="o">.</span><span class="n">imread</span><span class="p">(</span><span class="n">imgs_after</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+    <span class="c1"># print(before.shape)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">after</span><span class="p">)</span> <span class="c1">#,aspect=ar)</span>
+    <span class="n">idx</span> <span class="o">=</span> <span class="n">idx</span> <span class="o">+</span> <span class="mi">2</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
+
+</div>
+<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+</div><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p><a id='reuse_trans'></a></p>
+<h2 id="Reusing-Transformations">Reusing Transformations<a class="anchor-link" href="#Reusing-Transformations">&#182;</a></h2><p>The same transformation object resize, that was initially created with 'height' and 'width' parameters set to 100, can be used to perform another transformation, for example, with just changing height and width to '300'</p>
+<div align="right"><a href="#top">BackToTheTop</a></div>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="n">flip_resize_300_name</span> <span class="o">=</span> <span class="s2">&quot;flip-resize-300-</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">unique_id</span><span class="p">())</span>
+<span class="n">tj2</span> <span class="o">=</span> <span class="n">ds_version</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">resize</span><span class="o">.</span><span class="n">override</span><span class="p">(</span><span class="n">height</span><span class="o">=</span><span class="mi">300</span><span class="p">,</span><span class="n">width</span><span class="o">=</span><span class="mi">300</span><span class="p">))</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">num_workers</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">target_version</span><span class="o">=</span><span class="n">flip_resize_300_name</span><span class="p">)</span>
+<span class="c1">#Check job status</span>
+<span class="n">status</span> <span class="o">=</span> <span class="n">tj2</span><span class="o">.</span><span class="n">get_status</span><span class="p">()</span>
+<span class="k">while</span> <span class="n">status</span> <span class="o">!=</span> <span class="n">JobStatus</span><span class="o">.</span><span class="n">COMPLETE</span><span class="o">.</span><span class="n">value</span> <span class="ow">and</span> <span class="n">status</span> <span class="o">!=</span> <span class="n">JobStatus</span><span class="o">.</span><span class="n">FAILED</span><span class="o">.</span><span class="n">value</span><span class="p">:</span>
+    <span class="n">clear_output</span><span class="p">(</span><span class="n">wait</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">status</span> <span class="o">=</span> <span class="n">tj2</span><span class="o">.</span><span class="n">get_status</span><span class="p">()</span>
+    <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
+
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="c1"># get the handle to the new version after transformation </span>
+<span class="n">ds_version_transformed_300</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">version</span><span class="p">(</span> <span class="n">version_name</span> <span class="o">=</span>  <span class="n">flip_resize_300_name</span><span class="p">)</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
+
+</div>
+<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+</div><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p>Lets check the images again to see the difference when weight=128 and weight=256</p>
+
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="kn">from</span> <span class="nn">matplotlib</span> <span class="k">import</span> <span class="n">pyplot</span> <span class="k">as</span> <span class="n">plt</span>
+<span class="kn">from</span> <span class="nn">skimage</span> <span class="k">import</span> <span class="n">io</span>
+<span class="o">%</span><span class="k">matplotlib</span> inline
+
+<span class="n">rows</span> <span class="o">=</span> <span class="mi">8</span>
+<span class="n">cols</span> <span class="o">=</span> <span class="mi">2</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">40</span><span class="p">,</span><span class="mi">50</span><span class="p">))</span>
+<span class="n">imgs_before</span> <span class="o">=</span> <span class="p">[</span><span class="n">img</span> <span class="k">for</span> <span class="n">img</span><span class="p">,</span><span class="n">lbl</span> <span class="ow">in</span> <span class="n">ds_version_transformed</span><span class="o">.</span><span class="n">get_iterator</span><span class="p">()</span><span class="o">.</span><span class="n">next_batch</span><span class="p">(</span><span class="mi">8</span><span class="p">)]</span>
+<span class="n">imgs_after</span> <span class="o">=</span> <span class="p">[</span><span class="n">img</span> <span class="k">for</span> <span class="n">img</span><span class="p">,</span><span class="n">lbl</span> <span class="ow">in</span> <span class="n">ds_version_transformed_300</span><span class="o">.</span><span class="n">get_iterator</span><span class="p">()</span><span class="o">.</span><span class="n">next_batch</span><span class="p">(</span><span class="mi">8</span><span class="p">)]</span> 
+<span class="n">imgs_before</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">imgs_before</span><span class="p">)</span>
+<span class="n">imgs_after</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">imgs_after</span><span class="p">)</span>
+<span class="n">idx</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">8</span><span class="p">):</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">subplot</span><span class="p">(</span><span class="n">rows</span><span class="p">,</span> <span class="n">cols</span><span class="p">,</span> <span class="n">idx</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s1">&#39;before&#39;</span><span class="p">)</span>
+    <span class="n">before</span> <span class="o">=</span> <span class="n">io</span><span class="o">.</span><span class="n">imread</span><span class="p">(</span><span class="n">imgs_before</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+    <span class="c1"># print(before.shape)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">before</span><span class="p">)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">subplot</span><span class="p">(</span><span class="n">rows</span><span class="p">,</span> <span class="n">cols</span><span class="p">,</span> <span class="n">idx</span> <span class="o">+</span> <span class="mi">2</span><span class="p">)</span>
+    <span class="n">h</span><span class="p">,</span><span class="n">w</span><span class="p">,</span><span class="n">_</span> <span class="o">=</span> <span class="n">before</span><span class="o">.</span><span class="n">shape</span>
+    <span class="n">ar</span> <span class="o">=</span> <span class="n">h</span><span class="o">/</span><span class="n">w</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s1">&#39;after&#39;</span><span class="p">)</span>
+    <span class="n">after</span> <span class="o">=</span> <span class="n">io</span><span class="o">.</span><span class="n">imread</span><span class="p">(</span><span class="n">imgs_after</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+    <span class="c1"># print(before.shape)</span>
+    <span class="n">plt</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">after</span><span class="p">)</span> <span class="c1">#,aspect=ar)</span>
+    <span class="n">idx</span> <span class="o">=</span> <span class="n">idx</span> <span class="o">+</span> <span class="mi">2</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
+
+</div>
+<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+</div><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p><a id="splits"></a></p>
+<h1 id="Creating-Training/Test/Validation-Splits">Creating Training/Test/Validation Splits<a class="anchor-link" href="#Creating-Training/Test/Validation-Splits">&#182;</a></h1><p>Use <strong>_DataSetVersion.create_data<em>split()</em></strong> to create train/test/validation splits.</p>
+<p>It takes:</p>
+<ul>
+<li><strong>split_name</strong> : Name of the split being created.</li>
+<li><strong>split_percentages</strong>: An array of ints specifying the train/test/validation split percentages in the respective order.</li>
+<li><strong>author</strong>: author of the split</li>
+<li><strong>description</strong> : some description about the split</li>
+</ul>
+<p><font color="red">IMPORTANT:</font> Please make sure the DataSetVersion which is being used for split has status 'Complete'. You can see the status in the search result or DataSetVersion.status.</p>
+<p>It returns:
+    <strong><em>DataSetSplitJob</em></strong> object</p>
+<p><strong>DataSetSplitJob.get_status()</strong> can be used to check status of dataset split job</p>
+<p><strong>DataSetSplitJob.cancel()</strong> can be used to check status of dataset split job</p>
+<h4 id="NOTE:">NOTE:<a class="anchor-link" href="#NOTE:">&#182;</a></h4><p>-- with the sample dataset, creating split takes about 1-2 mins</p>
+<div align="right"><a href="#top">BackToTheTop</a></div>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="n">dataset_split_name</span> <span class="o">=</span> <span class="s2">&quot;split-70-20-10-</span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">unique_id</span><span class="p">())</span>
+<span class="n">split_job</span> <span class="o">=</span> <span class="n">ds_version_transformed</span><span class="o">.</span><span class="n">create_data_split</span><span class="p">(</span><span class="n">split_name</span> <span class="o">=</span> <span class="n">dataset_split_name</span><span class="p">,</span>
+                                                 <span class="n">split_percentages</span> <span class="o">=</span> <span class="p">[</span><span class="mi">70</span><span class="p">,</span><span class="mi">20</span><span class="p">,</span><span class="mi">10</span><span class="p">],</span>
+                                                 <span class="n">description</span> <span class="o">=</span> <span class="s2">&quot;split by 70-20-10&quot;</span><span class="p">)</span>
+
+<span class="c1">#Check job status</span>
+<span class="k">while</span> <span class="n">split_job</span><span class="o">.</span><span class="n">status</span> <span class="o">!=</span> <span class="n">JobStatus</span><span class="o">.</span><span class="n">COMPLETE</span><span class="o">.</span><span class="n">value</span> <span class="ow">and</span> <span class="n">split_job</span><span class="o">.</span><span class="n">status</span> <span class="o">!=</span> <span class="n">JobStatus</span><span class="o">.</span><span class="n">FAILED</span><span class="o">.</span><span class="n">value</span><span class="p">:</span>
+    <span class="n">clear_output</span><span class="p">(</span><span class="n">wait</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">split_job</span> <span class="o">=</span> <span class="n">split_job</span><span class="o">.</span><span class="n">get_status</span><span class="p">()</span>
+    <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
+
+</div>
+<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+</div><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<h4 id="DataSetSplit.create()-will-return-a-DataSetSplitJob-object">DataSetSplit.create() will return a DataSetSplitJob object<a class="anchor-link" href="#DataSetSplit.create()-will-return-a-DataSetSplitJob-object">&#182;</a></h4><p>The job object can be used to track the progress of DataSetSplit creation.</p>
+<p>job.get_dataset_split() will return a DataSetSplit object that's a handle to the new dataset split created</p>
+
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="n">split</span> <span class="o">=</span> <span class="n">split_job</span><span class="o">.</span><span class="n">get_dataset_split</span><span class="p">()</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
+
+</div>
+<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+</div><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p><a id='search_splits'></a></p>
+<h1 id="Searching-And-Retrieving-DataSet-Splits">Searching And Retrieving DataSet Splits<a class="anchor-link" href="#Searching-And-Retrieving-DataSet-Splits">&#182;</a></h1><p><strong>DataSetVersion.search_splits()</strong> can be used to search DataSetSplits created from that particular DataSetVersion.
+Args:</p>
+<ul>
+<li><strong>split_name</strong>: name of the split.</li>
+<li><strong>split_author</strong> : author of the split.</li>
+<li><strong>split_description</strong> : description of the split.</li>
+</ul>
+<p><strong>DataSetVersion.split()</strong> which takes split_name as an argument can be used to retrieve <strong>DataSetSplit</strong> with exact name.</p>
+<div align="right"><a href="#top">BackToTheTop</a></div>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="c1"># list all splits for a particular dataset version which match the search criteria</span>
+<span class="n">ds_version_transformed</span><span class="o">.</span><span class="n">search_splits</span><span class="p">(</span><span class="n">split_author</span> <span class="o">=</span> <span class="n">user_name</span><span class="p">)</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
+
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="c1"># get a split object for a particular dataset version which can be used in training models</span>
+<span class="n">split_obj</span> <span class="o">=</span> <span class="n">ds_version_transformed</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">split_name</span> <span class="o">=</span> <span class="n">dataset_split_name</span><span class="p">)</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
+
+</div>
+<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+</div><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p>NOTE: <strong><em>DataSetSplit</em></strong> object is used for training models</p>
+
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+</div><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<h2 id="Congratulations-!!!-You-completed-the-tutorial-successfully."><strong><em><font color="green">Congratulations !!! You completed the tutorial successfully.</font></em></strong><a class="anchor-link" href="#Congratulations-!!!-You-completed-the-tutorial-successfully.">&#182;</a></h2>
+</div>
+</div>
 </div>
     </div>
   </div>

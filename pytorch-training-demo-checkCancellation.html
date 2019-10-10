@@ -2,7 +2,7 @@
 <html>
 <head><meta charset="utf-8" />
 
-<title>Reference_CIFAR10-OddClassesTraining</title>
+<title>pytorch-training-demo-checkCancellation</title>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.1.10/require.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
@@ -13113,24 +13113,6 @@ div#notebook {
   <div tabindex="-1" id="notebook" class="border-box-sizing">
     <div class="container" id="notebook-container">
 
-<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
-</div><div class="inner_cell">
-<div class="text_cell_render border-box-sizing rendered_html">
-<h1 id="Resnet-model-training-on-CIFAR10-odd-numbered-classes-on-SBrain"><div class="alert alert-block alert-info" style="border-width:4px">Resnet model training on CIFAR10 odd numbered classes on SBrain</div><a class="anchor-link" href="#Resnet-model-training-on-CIFAR10-odd-numbered-classes-on-SBrain">&#182;</a></h1>
-</div>
-</div>
-</div>
-<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
-</div><div class="inner_cell">
-<div class="text_cell_render border-box-sizing rendered_html">
-<h1 id="Introduction">Introduction<a class="anchor-link" href="#Introduction">&#182;</a></h1><p>THIS NOTEBOOK CAN TAKE LONG TIME TO RUN. SO IT IS MAINLY FOR REFERENCE. IT MAY TAKE SOME TIME IF YOU TRY TO RUN IT.</p>
-<p>In this notebook, we will build a Resnet model and train it on CIFAR10 dataset, but only on odd numbered classes. When we do transfer learning in <a href="2_TransferLearning.ipynb">TransferLearning Notebook</a>, this model will serve as the model that we transfer from.</p>
-<p>Below, we define an input_function to be used in SBrain. More details on input_function is in <a href="2_TransferLearning.ipynb">TransferLearning Notebook</a>.
-In this function, we download the CIFAR-10 data, load TFRecordDataset from it and filter it for only the odd numbered classes.</p>
-
-</div>
-</div>
-</div>
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
 <div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
@@ -13138,499 +13120,200 @@ In this function, we download the CIFAR-10 data, load TFRecordDataset from it an
     <div class="input_area">
 <div class=" highlight hl-ipython3"><pre><span></span><span class="kn">from</span> <span class="nn">sbrain.learning.experiment</span> <span class="k">import</span> <span class="o">*</span>
 <span class="kn">from</span> <span class="nn">sbrain.dataset.dataset</span> <span class="k">import</span> <span class="o">*</span>
+</pre></div>
 
-<span class="k">def</span> <span class="nf">only_odd_classes_input_function</span><span class="p">(</span><span class="n">mode</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
-    <span class="kn">import</span> <span class="nn">os</span>
-    <span class="kn">import</span> <span class="nn">tensorflow</span> <span class="k">as</span> <span class="nn">tf</span>
-    <span class="kn">import</span> <span class="nn">sys</span>
-    <span class="kn">import</span> <span class="nn">tarfile</span>
-    <span class="kn">import</span> <span class="nn">pickle</span>
-    <span class="n">CLASS_INDEX_MOD</span> <span class="o">=</span> <span class="mi">0</span>
+    </div>
+</div>
+</div>
 
-    <span class="n">HEIGHT</span> <span class="o">=</span> <span class="mi">32</span>
-    <span class="n">WIDTH</span> <span class="o">=</span> <span class="mi">32</span>
-    <span class="n">DEPTH</span> <span class="o">=</span> <span class="mi">3</span>
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="kn">import</span> <span class="nn">os</span>
+<span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="s1">&#39;/home/jovyan/shared-dir/data&#39;</span><span class="p">)</span>
+</pre></div>
 
-    <span class="n">CIFAR_FILENAME</span> <span class="o">=</span> <span class="s1">&#39;cifar-10-python.tar.gz&#39;</span>
-    <span class="n">CIFAR_DOWNLOAD_URL</span> <span class="o">=</span> <span class="s1">&#39;https://www.cs.toronto.edu/~kriz/&#39;</span> <span class="o">+</span> <span class="n">CIFAR_FILENAME</span>
-    <span class="n">CIFAR_LOCAL_FOLDER</span> <span class="o">=</span> <span class="s1">&#39;cifar-10-batches-py&#39;</span>
+    </div>
+</div>
+</div>
 
-    <span class="k">def</span> <span class="nf">download_and_extract</span><span class="p">(</span><span class="n">data_dir</span><span class="p">):</span>
-        <span class="c1"># download CIFAR-10 if not already downloaded.</span>
-        <span class="n">tf</span><span class="o">.</span><span class="n">contrib</span><span class="o">.</span><span class="n">learn</span><span class="o">.</span><span class="n">datasets</span><span class="o">.</span><span class="n">base</span><span class="o">.</span><span class="n">maybe_download</span><span class="p">(</span><span class="n">CIFAR_FILENAME</span><span class="p">,</span> <span class="n">data_dir</span><span class="p">,</span>
-                                                      <span class="n">CIFAR_DOWNLOAD_URL</span><span class="p">)</span>
-        <span class="n">tarfile</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">data_dir</span><span class="p">,</span> <span class="n">CIFAR_FILENAME</span><span class="p">),</span>
-                     <span class="s1">&#39;r:gz&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">extractall</span><span class="p">(</span><span class="n">data_dir</span><span class="p">)</span>
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="k">def</span> <span class="nf">input_fn</span><span class="p">(</span><span class="n">mode</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    mode: {&#39;train&#39;, &#39;eval&#39;}</span>
+<span class="sd">    :param mode:</span>
+<span class="sd">    :param params:</span>
+<span class="sd">    :return:</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">import</span> <span class="nn">torch</span>
+    <span class="kn">import</span> <span class="nn">torch.utils.data</span> <span class="k">as</span> <span class="nn">data</span>
+    <span class="kn">from</span> <span class="nn">torchvision</span> <span class="k">import</span> <span class="n">datasets</span><span class="p">,</span> <span class="n">transforms</span>
+    <span class="kn">from</span> <span class="nn">PIL</span> <span class="k">import</span> <span class="n">Image</span>
 
-    <span class="k">def</span> <span class="nf">_int64_feature</span><span class="p">(</span><span class="n">value</span><span class="p">):</span>
-        <span class="k">return</span> <span class="n">tf</span><span class="o">.</span><span class="n">train</span><span class="o">.</span><span class="n">Feature</span><span class="p">(</span><span class="n">int64_list</span><span class="o">=</span><span class="n">tf</span><span class="o">.</span><span class="n">train</span><span class="o">.</span><span class="n">Int64List</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="p">[</span><span class="n">value</span><span class="p">]))</span>
+    <span class="k">class</span> <span class="nc">TorchDataset</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">Dataset</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Must implement methods __getitem__, __len__ and get_batch_size. Following implementation are examples on how to implement them.&quot;&quot;&quot;</span>
+        <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data_file</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">,</span> <span class="n">data_transforms</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">target_transforms</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="p">):</span>
+            <span class="sd">&quot;&quot;&quot;Assumes data_file was saved using `torch.save`&quot;&quot;&quot;</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">data_file</span> <span class="o">=</span> <span class="n">data_file</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">batch_size</span> <span class="o">=</span> <span class="n">batch_size</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">data_transforms</span> <span class="o">=</span> <span class="n">data_transforms</span> <span class="k">if</span> <span class="n">data_transforms</span> <span class="k">else</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">target_transforms</span> <span class="o">=</span> <span class="n">target_transforms</span> <span class="k">if</span> <span class="n">target_transforms</span> <span class="k">else</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span>
 
-    <span class="k">def</span> <span class="nf">_bytes_feature</span><span class="p">(</span><span class="n">value</span><span class="p">):</span>
-        <span class="k">return</span> <span class="n">tf</span><span class="o">.</span><span class="n">train</span><span class="o">.</span><span class="n">Feature</span><span class="p">(</span><span class="n">bytes_list</span><span class="o">=</span><span class="n">tf</span><span class="o">.</span><span class="n">train</span><span class="o">.</span><span class="n">BytesList</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="p">[</span><span class="n">value</span><span class="p">]))</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data_file</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">NameError</span><span class="p">(</span><span class="n">data_file</span> <span class="o">+</span> <span class="s1">&#39; does not exist&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">labels</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data_file</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">_get_file_names</span><span class="p">():</span>
-        <span class="sd">&quot;&quot;&quot;Returns the file names expected to exist in the input_dir.&quot;&quot;&quot;</span>
-        <span class="n">file_names</span> <span class="o">=</span> <span class="p">{}</span>
-        <span class="n">file_names</span><span class="p">[</span><span class="s1">&#39;train&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;data_batch_</span><span class="si">%d</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">i</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">5</span><span class="p">)]</span>
-        <span class="n">file_names</span><span class="p">[</span><span class="s1">&#39;validation&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;data_batch_5&#39;</span><span class="p">]</span>
-        <span class="n">file_names</span><span class="p">[</span><span class="s1">&#39;eval&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;test_batch&#39;</span><span class="p">]</span>
-        <span class="k">return</span> <span class="n">file_names</span>
 
-    <span class="k">def</span> <span class="nf">read_pickle_from_file</span><span class="p">(</span><span class="n">filename</span><span class="p">):</span>
-        <span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">gfile</span><span class="o">.</span><span class="n">Open</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
-            <span class="k">if</span> <span class="n">sys</span><span class="o">.</span><span class="n">version_info</span> <span class="o">&gt;=</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">0</span><span class="p">):</span>
-                <span class="n">data_dict</span> <span class="o">=</span> <span class="n">pickle</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s1">&#39;bytes&#39;</span><span class="p">)</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">data_dict</span> <span class="o">=</span> <span class="n">pickle</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">data_dict</span>
+        <span class="k">def</span> <span class="nf">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">):</span>
+            <span class="n">img</span><span class="p">,</span> <span class="n">target</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">index</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">labels</span><span class="p">[</span><span class="n">index</span><span class="p">]</span>
 
-    <span class="k">def</span> <span class="nf">convert_to_tfrecord</span><span class="p">(</span><span class="n">input_files</span><span class="p">,</span> <span class="n">output_file</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Converts a file to TFRecords.&quot;&quot;&quot;</span>
-        <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Generating </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">output_file</span><span class="p">)</span>
-        <span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">python_io</span><span class="o">.</span><span class="n">TFRecordWriter</span><span class="p">(</span><span class="n">output_file</span><span class="p">)</span> <span class="k">as</span> <span class="n">record_writer</span><span class="p">:</span>
-            <span class="k">for</span> <span class="n">input_file</span> <span class="ow">in</span> <span class="n">input_files</span><span class="p">:</span>
-                <span class="n">data_dict</span> <span class="o">=</span> <span class="n">read_pickle_from_file</span><span class="p">(</span><span class="n">input_file</span><span class="p">)</span>
-                <span class="n">data</span> <span class="o">=</span> <span class="n">data_dict</span><span class="p">[</span><span class="sa">b</span><span class="s1">&#39;data&#39;</span><span class="p">]</span>
-                <span class="n">labels</span> <span class="o">=</span> <span class="n">data_dict</span><span class="p">[</span><span class="sa">b</span><span class="s1">&#39;labels&#39;</span><span class="p">]</span>
-                <span class="n">num_entries_in_batch</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">labels</span><span class="p">)</span>
-                <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_entries_in_batch</span><span class="p">):</span>
-                    <span class="n">example</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">train</span><span class="o">.</span><span class="n">Example</span><span class="p">(</span><span class="n">features</span><span class="o">=</span><span class="n">tf</span><span class="o">.</span><span class="n">train</span><span class="o">.</span><span class="n">Features</span><span class="p">(</span>
-                        <span class="n">feature</span><span class="o">=</span><span class="p">{</span>
-                            <span class="s1">&#39;image&#39;</span><span class="p">:</span> <span class="n">_bytes_feature</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">tobytes</span><span class="p">()),</span>
-                            <span class="s1">&#39;label&#39;</span><span class="p">:</span> <span class="n">_int64_feature</span><span class="p">(</span><span class="n">labels</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
-                        <span class="p">}))</span>
-                    <span class="n">record_writer</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">example</span><span class="o">.</span><span class="n">SerializeToString</span><span class="p">())</span>
+            <span class="c1"># doing this so that it is consistent with all other datasets</span>
+            <span class="c1"># to return a PIL Image</span>
+            <span class="n">img</span> <span class="o">=</span> <span class="n">Image</span><span class="o">.</span><span class="n">fromarray</span><span class="p">(</span><span class="n">img</span><span class="o">.</span><span class="n">numpy</span><span class="p">(),</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;L&#39;</span><span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">setup_cifar10_data</span><span class="p">(</span><span class="n">data_dir</span><span class="p">):</span>
-        <span class="n">train_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">data_dir</span><span class="p">,</span> <span class="s1">&#39;train.tfrecords&#39;</span><span class="p">)</span>
-        <span class="n">validation_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">data_dir</span><span class="p">,</span> <span class="s1">&#39;validation.tfrecords&#39;</span><span class="p">)</span>
-        <span class="n">eval_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">data_dir</span><span class="p">,</span> <span class="s1">&#39;eval.tfrecords&#39;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">train_dir</span><span class="p">)</span> <span class="ow">and</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">validation_dir</span><span class="p">)</span> <span class="ow">and</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">eval_dir</span><span class="p">):</span>
-            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Data already present.&quot;</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Download from </span><span class="si">{}</span><span class="s1"> and extract. Wait for download complete message..&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">CIFAR_DOWNLOAD_URL</span><span class="p">))</span>
-            <span class="n">download_and_extract</span><span class="p">(</span><span class="n">data_dir</span><span class="p">)</span>
-            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Download completed&#39;</span><span class="p">)</span>
-            <span class="n">file_names</span> <span class="o">=</span> <span class="n">_get_file_names</span><span class="p">()</span>
-            <span class="n">input_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">data_dir</span><span class="p">,</span> <span class="n">CIFAR_LOCAL_FOLDER</span><span class="p">)</span>
-            <span class="k">for</span> <span class="n">mode</span><span class="p">,</span> <span class="n">files</span> <span class="ow">in</span> <span class="n">file_names</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-                <span class="n">input_files</span> <span class="o">=</span> <span class="p">[</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">input_dir</span><span class="p">,</span> <span class="n">f</span><span class="p">)</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">files</span><span class="p">]</span>
-                <span class="n">output_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">data_dir</span><span class="p">,</span> <span class="n">mode</span> <span class="o">+</span> <span class="s1">&#39;.tfrecords&#39;</span><span class="p">)</span>
-                <span class="k">try</span><span class="p">:</span>
-                    <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">output_file</span><span class="p">)</span>
-                <span class="k">except</span> <span class="ne">OSError</span><span class="p">:</span>
-                    <span class="k">pass</span>
-                <span class="c1"># Convert to tf.train.Example and write the to TFRecords.</span>
-                <span class="n">convert_to_tfrecord</span><span class="p">(</span><span class="n">input_files</span><span class="p">,</span> <span class="n">output_file</span><span class="p">)</span>
-            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Done!&#39;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">data_transforms</span><span class="p">(</span><span class="n">img</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">target_transforms</span><span class="p">(</span><span class="n">target</span><span class="p">)</span>
 
-    <span class="k">class</span> <span class="nc">Cifar10DataSet</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Cifar10 data set.</span>
-<span class="sd">        Described by http://www.cs.toronto.edu/~kriz/cifar.html.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
 
-        <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data_dir</span><span class="p">,</span> <span class="n">subset</span><span class="o">=</span><span class="s1">&#39;train&#39;</span><span class="p">,</span> <span class="n">use_distortion</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">data_dir</span> <span class="o">=</span> <span class="n">data_dir</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">subset</span> <span class="o">=</span> <span class="n">subset</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">use_distortion</span> <span class="o">=</span> <span class="n">use_distortion</span>
+        <span class="k">def</span> <span class="nf">__len__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+            <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">)</span>
 
-        <span class="k">def</span> <span class="nf">get_filenames</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">subset</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;train&#39;</span><span class="p">,</span> <span class="s1">&#39;validation&#39;</span><span class="p">,</span> <span class="s1">&#39;eval&#39;</span><span class="p">]:</span>
-                <span class="k">return</span> <span class="p">[</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data_dir</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">subset</span> <span class="o">+</span> <span class="s1">&#39;.tfrecords&#39;</span><span class="p">)]</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Invalid data subset &quot;</span><span class="si">%s</span><span class="s1">&quot;&#39;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">subset</span><span class="p">)</span>
 
-        <span class="k">def</span> <span class="nf">parser</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">serialized_example</span><span class="p">):</span>
-            <span class="sd">&quot;&quot;&quot;Parses a single tf.Example into image and label tensors.&quot;&quot;&quot;</span>
-            <span class="c1"># Dimensions of the images in the CIFAR-10 dataset.</span>
-            <span class="c1"># See http://www.cs.toronto.edu/~kriz/cifar.html for a description of the</span>
-            <span class="c1"># input format.</span>
-            <span class="n">features</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">parse_single_example</span><span class="p">(</span>
-                <span class="n">serialized_example</span><span class="p">,</span>
-                <span class="n">features</span><span class="o">=</span><span class="p">{</span>
-                    <span class="s1">&#39;image&#39;</span><span class="p">:</span> <span class="n">tf</span><span class="o">.</span><span class="n">FixedLenFeature</span><span class="p">([],</span> <span class="n">tf</span><span class="o">.</span><span class="n">string</span><span class="p">),</span>
-                    <span class="s1">&#39;label&#39;</span><span class="p">:</span> <span class="n">tf</span><span class="o">.</span><span class="n">FixedLenFeature</span><span class="p">([],</span> <span class="n">tf</span><span class="o">.</span><span class="n">int64</span><span class="p">),</span>
-                <span class="p">})</span>
-            <span class="n">image</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">decode_raw</span><span class="p">(</span><span class="n">features</span><span class="p">[</span><span class="s1">&#39;image&#39;</span><span class="p">],</span> <span class="n">tf</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>
-            <span class="n">image</span><span class="o">.</span><span class="n">set_shape</span><span class="p">([</span><span class="n">DEPTH</span> <span class="o">*</span> <span class="n">HEIGHT</span> <span class="o">*</span> <span class="n">WIDTH</span><span class="p">])</span>
+        <span class="k">def</span> <span class="nf">get_batch_size</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">batch_size</span>
 
-            <span class="c1"># Reshape from [depth * height * width] to [depth, height, width].</span>
-            <span class="n">image</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span>
-                <span class="n">tf</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="p">[</span><span class="n">DEPTH</span><span class="p">,</span> <span class="n">HEIGHT</span><span class="p">,</span> <span class="n">WIDTH</span><span class="p">]),</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">]),</span>
-                <span class="n">tf</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
-            <span class="n">label</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">cast</span><span class="p">(</span><span class="n">features</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">],</span> <span class="n">tf</span><span class="o">.</span><span class="n">int32</span><span class="p">)</span>
+    <span class="n">data_transforms</span> <span class="o">=</span> <span class="n">transforms</span><span class="o">.</span><span class="n">Compose</span><span class="p">([</span>
+        <span class="n">transforms</span><span class="o">.</span><span class="n">ToTensor</span><span class="p">(),</span>
+        <span class="n">transforms</span><span class="o">.</span><span class="n">Normalize</span><span class="p">((</span><span class="mf">0.1307</span><span class="p">,),</span> <span class="p">(</span><span class="mf">0.3081</span><span class="p">,))</span>
+    <span class="p">])</span>
 
-            <span class="c1"># Custom preprocessing.</span>
-            <span class="n">image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">preprocess</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
+    <span class="n">data_dir</span> <span class="o">=</span> <span class="s1">&#39;/workspace/shared-dir/data&#39;</span>
 
-            <span class="k">return</span> <span class="p">({</span><span class="s2">&quot;data&quot;</span><span class="p">:</span> <span class="n">image</span><span class="p">},</span> <span class="n">label</span><span class="p">)</span>
-
-        <span class="k">def</span> <span class="nf">adjust_labels</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">label</span><span class="p">):</span>
-            <span class="k">return</span> <span class="n">data</span><span class="p">,</span> <span class="n">tf</span><span class="o">.</span><span class="n">floordiv</span><span class="p">(</span><span class="n">label</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
-
-        <span class="k">def</span> <span class="nf">filter_fun</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">label</span><span class="p">):</span>
-            <span class="k">return</span> <span class="n">tf</span><span class="o">.</span><span class="n">equal</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">mod</span><span class="p">(</span><span class="n">label</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span> <span class="n">CLASS_INDEX_MOD</span><span class="p">)</span>
-
-        <span class="k">def</span> <span class="nf">get_dataset</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-            <span class="sd">&quot;&quot;&quot;Read the images and labels from &#39;filenames&#39;.&quot;&quot;&quot;</span>
-            <span class="n">filenames</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_filenames</span><span class="p">()</span>
-
-            <span class="n">dataset</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">TFRecordDataset</span><span class="p">(</span><span class="n">filenames</span><span class="p">)</span>
-
-            <span class="c1"># Parse records.</span>
-            <span class="n">dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">parser</span><span class="p">)</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">filter_fun</span><span class="p">)</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">adjust_labels</span><span class="p">)</span>
-            <span class="k">return</span> <span class="n">dataset</span>
-
-        <span class="k">def</span> <span class="nf">preprocess</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">image</span><span class="p">):</span>
-            <span class="sd">&quot;&quot;&quot;Preprocess a single image in [height, width, depth] layout.&quot;&quot;&quot;</span>
-            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">subset</span> <span class="o">==</span> <span class="s1">&#39;train&#39;</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">use_distortion</span><span class="p">:</span>
-                <span class="c1"># Pad 4 pixels on each dimension of feature map, done in mini-batch</span>
-                <span class="n">image</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">resize_image_with_crop_or_pad</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="mi">40</span><span class="p">,</span> <span class="mi">40</span><span class="p">)</span>
-                <span class="n">image</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">random_crop</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="p">[</span><span class="n">HEIGHT</span><span class="p">,</span> <span class="n">WIDTH</span><span class="p">,</span> <span class="n">DEPTH</span><span class="p">])</span>
-                <span class="n">image</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">random_flip_left_right</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
-            <span class="k">return</span> <span class="n">image</span>
-
-    <span class="n">use_distortion</span> <span class="o">=</span> <span class="kc">False</span>
-    <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="n">tf</span><span class="o">.</span><span class="n">estimator</span><span class="o">.</span><span class="n">ModeKeys</span><span class="o">.</span><span class="n">TRAIN</span><span class="p">:</span>
-        <span class="n">subset</span> <span class="o">=</span> <span class="s1">&#39;train&#39;</span>
-        <span class="n">use_distortion</span> <span class="o">=</span> <span class="kc">True</span>
-    <span class="k">elif</span> <span class="n">mode</span> <span class="o">==</span> <span class="n">tf</span><span class="o">.</span><span class="n">estimator</span><span class="o">.</span><span class="n">ModeKeys</span><span class="o">.</span><span class="n">EVAL</span><span class="p">:</span>
-        <span class="n">subset</span> <span class="o">=</span> <span class="s1">&#39;validation&#39;</span>
+    <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="s1">&#39;train&#39;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">TorchDataset</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">data_dir</span><span class="p">,</span> <span class="s1">&#39;training.pt&#39;</span><span class="p">),</span>
+                            <span class="n">batch_size</span> <span class="o">=</span> <span class="mi">64</span><span class="p">,</span>
+                            <span class="n">data_transforms</span> <span class="o">=</span> <span class="n">data_transforms</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
-        <span class="n">subset</span> <span class="o">=</span> <span class="s1">&#39;eval&#39;</span>
-    <span class="n">data_dir</span> <span class="o">=</span> <span class="s2">&quot;/workspace/shared-dir/sample-notebooks/demo-data/learning/OddClasses/&quot;</span>
+        <span class="k">return</span> <span class="n">TorchDataset</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">data_dir</span><span class="p">,</span> <span class="s1">&#39;test.pt&#39;</span><span class="p">),</span>
+                            <span class="n">batch_size</span> <span class="o">=</span> <span class="mi">1000</span><span class="p">,</span>
+                            <span class="n">data_transforms</span> <span class="o">=</span> <span class="n">data_transforms</span><span class="p">)</span>
 
-    <span class="n">setup_cifar10_data</span><span class="p">(</span><span class="n">data_dir</span><span class="p">)</span>
 
-    <span class="n">dataset</span> <span class="o">=</span> <span class="n">Cifar10DataSet</span><span class="p">(</span><span class="n">data_dir</span><span class="p">,</span> <span class="n">subset</span><span class="p">,</span> <span class="n">use_distortion</span><span class="p">)</span><span class="o">.</span><span class="n">get_dataset</span><span class="p">()</span>
 
-    <span class="n">dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">shuffle</span><span class="p">(</span><span class="mi">1000</span><span class="p">)</span><span class="o">.</span><span class="n">batch</span><span class="p">(</span><span class="n">batch_size</span><span class="p">)</span>
-    <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="n">tf</span><span class="o">.</span><span class="n">estimator</span><span class="o">.</span><span class="n">ModeKeys</span><span class="o">.</span><span class="n">TRAIN</span><span class="p">:</span>
-        <span class="n">dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">repeat</span><span class="p">()</span>
-    <span class="k">return</span> <span class="n">dataset</span>
+<span class="k">def</span> <span class="nf">model_fn</span><span class="p">(</span><span class="n">params</span><span class="p">,</span> <span class="n">cuda</span> <span class="o">=</span> <span class="kc">True</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    :param params: Dictionary. Any hyper params that user may want to supply. For example, any permutation of a Neural Network Architechture.</span>
+<span class="sd">    :return: model, loss function, optimizer</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">import</span> <span class="nn">torch.nn</span> <span class="k">as</span> <span class="nn">nn</span>
+    <span class="kn">import</span> <span class="nn">torch.nn.functional</span> <span class="k">as</span> <span class="nn">F</span>
+    <span class="kn">import</span> <span class="nn">torch.optim</span> <span class="k">as</span> <span class="nn">optim</span>
+
+    <span class="k">class</span> <span class="nc">Net</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+        <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+            <span class="nb">super</span><span class="p">(</span><span class="n">Net</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">conv1</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="n">kernel_size</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">conv2</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">20</span><span class="p">,</span> <span class="n">kernel_size</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">conv2_drop</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Dropout2d</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">fc1</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="mi">320</span><span class="p">,</span> <span class="mi">50</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">fc2</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="mi">50</span><span class="p">,</span> <span class="mi">10</span><span class="p">)</span>
+
+        <span class="k">def</span> <span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">relu</span><span class="p">(</span><span class="n">F</span><span class="o">.</span><span class="n">max_pool2d</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conv1</span><span class="p">(</span><span class="n">x</span><span class="p">),</span> <span class="mi">2</span><span class="p">))</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">relu</span><span class="p">(</span><span class="n">F</span><span class="o">.</span><span class="n">max_pool2d</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conv2_drop</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conv2</span><span class="p">(</span><span class="n">x</span><span class="p">)),</span> <span class="mi">2</span><span class="p">))</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">320</span><span class="p">)</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">relu</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fc1</span><span class="p">(</span><span class="n">x</span><span class="p">))</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">dropout</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">training</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">training</span><span class="p">)</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fc2</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">F</span><span class="o">.</span><span class="n">log_softmax</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+
+    <span class="n">model</span> <span class="o">=</span> <span class="n">Net</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">cuda</span><span class="p">:</span>
+        <span class="c1"># Move model to GPU.</span>
+        <span class="n">model</span><span class="o">.</span><span class="n">cuda</span><span class="p">()</span>
+
+    <span class="c1"># Horovod: scale learning rate by the number of GPUs.</span>
+    <span class="n">optimizer</span> <span class="o">=</span> <span class="n">optim</span><span class="o">.</span><span class="n">SGD</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">parameters</span><span class="p">(),</span> <span class="n">lr</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s1">&#39;lr&#39;</span><span class="p">],</span>
+                          <span class="n">momentum</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s1">&#39;momentum&#39;</span><span class="p">])</span>
+
+    <span class="k">def</span> <span class="nf">loss_fn</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="n">target</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">F</span><span class="o">.</span><span class="n">nll_loss</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="n">target</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">model</span><span class="p">,</span> <span class="n">optimizer</span><span class="p">,</span> <span class="n">loss_fn</span>
+
+
+<span class="k">def</span> <span class="nf">train_step</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">optimizer</span><span class="p">,</span> <span class="n">loss_fn</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+    <span class="n">optimizer</span><span class="o">.</span><span class="n">zero_grad</span><span class="p">()</span>  <span class="c1"># clear gradient buffers</span>
+    <span class="n">y_prime</span> <span class="o">=</span> <span class="n">model</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+    <span class="n">loss</span> <span class="o">=</span> <span class="n">loss_fn</span><span class="p">(</span><span class="n">y_prime</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+    <span class="n">loss</span><span class="o">.</span><span class="n">backward</span><span class="p">()</span>  <span class="c1"># calculate all gradients d(loss)/d(parameter) \forall parameter \in Parameters</span>
+    <span class="n">optimizer</span><span class="o">.</span><span class="n">step</span><span class="p">()</span>  <span class="c1"># update \forall parameter \in Parameters as parameter &lt;- parameter - lr * d(loss)/d(parameter)</span>
+    <span class="k">return</span> <span class="n">loss</span>
+
+
+<span class="k">def</span> <span class="nf">test_step</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+    <span class="kn">import</span> <span class="nn">torch.nn.functional</span> <span class="k">as</span> <span class="nn">F</span>
+    <span class="n">y_prime</span> <span class="o">=</span> <span class="n">model</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+    <span class="n">loss</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">nll_loss</span><span class="p">(</span><span class="n">y_prime</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">size_average</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="c1"># get the index of the max log-probability --&gt; this is most likely class</span>
+    <span class="n">y_pred</span> <span class="o">=</span> <span class="n">y_prime</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdim</span><span class="o">=</span><span class="kc">True</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">accuracy</span> <span class="o">=</span> <span class="n">y_pred</span><span class="o">.</span><span class="n">eq</span><span class="p">(</span><span class="n">y</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">y_pred</span><span class="p">))</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">float</span><span class="p">()</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">loss</span><span class="p">,</span> <span class="n">accuracy</span>
 </pre></div>
 
     </div>
 </div>
 </div>
 
-</div>
-<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
-</div><div class="inner_cell">
-<div class="text_cell_render border-box-sizing rendered_html">
-<p>Here we define, a model function where we build a RESNET model to be trained on the above dataset.</p>
-
-</div>
-</div>
 </div>
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
 <div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
 <div class="inner_cell">
     <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span></span><span class="k">def</span> <span class="nf">cifar_model_function</span><span class="p">(</span><span class="n">features</span><span class="p">,</span> <span class="n">labels</span><span class="p">,</span> <span class="n">mode</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
-    <span class="kn">import</span> <span class="nn">tensorflow</span> <span class="k">as</span> <span class="nn">tf</span>
-    <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
-    <span class="kn">import</span> <span class="nn">os</span>
-    <span class="c1">######################################## Resnet model #########################################</span>
-
-    <span class="k">class</span> <span class="nc">ResNet</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;ResNet model.&quot;&quot;&quot;</span>
-
-        <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">is_training</span><span class="p">,</span> <span class="n">data_format</span><span class="p">,</span> <span class="n">batch_norm_decay</span><span class="p">,</span> <span class="n">batch_norm_epsilon</span><span class="p">):</span>
-            <span class="sd">&quot;&quot;&quot;ResNet constructor.</span>
-
-<span class="sd">            Args:</span>
-<span class="sd">              is_training: if build training or inference model.</span>
-<span class="sd">              data_format: the data_format used during computation.</span>
-<span class="sd">                           one of &#39;channels_first&#39; or &#39;channels_last&#39;.</span>
-<span class="sd">            &quot;&quot;&quot;</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_batch_norm_decay</span> <span class="o">=</span> <span class="n">batch_norm_decay</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_batch_norm_epsilon</span> <span class="o">=</span> <span class="n">batch_norm_epsilon</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_is_training</span> <span class="o">=</span> <span class="n">is_training</span>
-            <span class="k">assert</span> <span class="n">data_format</span> <span class="ow">in</span> <span class="p">(</span><span class="s1">&#39;channels_first&#39;</span><span class="p">,</span> <span class="s1">&#39;channels_last&#39;</span><span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_data_format</span> <span class="o">=</span> <span class="n">data_format</span>
-
-        <span class="k">def</span> <span class="nf">forward_pass</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
-            <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
-                <span class="s1">&#39;forward_pass() is implemented in ResNet sub classes&#39;</span><span class="p">)</span>
-
-        <span class="k">def</span> <span class="nf">_residual_v1</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
-                         <span class="n">x</span><span class="p">,</span>
-                         <span class="n">kernel_size</span><span class="p">,</span>
-                         <span class="n">in_filter</span><span class="p">,</span>
-                         <span class="n">out_filter</span><span class="p">,</span>
-                         <span class="n">stride</span><span class="p">,</span>
-                         <span class="n">activate_before_residual</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
-            <span class="sd">&quot;&quot;&quot;Residual unit with 2 sub layers, using Plan A for shortcut connection.&quot;&quot;&quot;</span>
-
-            <span class="k">del</span> <span class="n">activate_before_residual</span>
-            <span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">name_scope</span><span class="p">(</span><span class="s1">&#39;residual_v1&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">name_scope</span><span class="p">:</span>
-                <span class="n">orig_x</span> <span class="o">=</span> <span class="n">x</span>
-
-                <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_conv</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">kernel_size</span><span class="p">,</span> <span class="n">out_filter</span><span class="p">,</span> <span class="n">stride</span><span class="p">)</span>
-                <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_batch_norm</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
-                <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_relu</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
-
-                <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_conv</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">kernel_size</span><span class="p">,</span> <span class="n">out_filter</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
-                <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_batch_norm</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
-
-                <span class="k">if</span> <span class="n">in_filter</span> <span class="o">!=</span> <span class="n">out_filter</span><span class="p">:</span>
-                    <span class="n">orig_x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_avg_pool</span><span class="p">(</span><span class="n">orig_x</span><span class="p">,</span> <span class="n">stride</span><span class="p">,</span> <span class="n">stride</span><span class="p">)</span>
-                    <span class="n">pad</span> <span class="o">=</span> <span class="p">(</span><span class="n">out_filter</span> <span class="o">-</span> <span class="n">in_filter</span><span class="p">)</span> <span class="o">//</span> <span class="mi">2</span>
-                    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_data_format</span> <span class="o">==</span> <span class="s1">&#39;channels_first&#39;</span><span class="p">:</span>
-                        <span class="n">orig_x</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">pad</span><span class="p">(</span><span class="n">orig_x</span><span class="p">,</span> <span class="p">[[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="p">[</span><span class="n">pad</span><span class="p">,</span> <span class="n">pad</span><span class="p">],</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]])</span>
-                    <span class="k">else</span><span class="p">:</span>
-                        <span class="n">orig_x</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">pad</span><span class="p">(</span><span class="n">orig_x</span><span class="p">,</span> <span class="p">[[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="p">[</span><span class="n">pad</span><span class="p">,</span> <span class="n">pad</span><span class="p">]])</span>
-
-                <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_relu</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">orig_x</span><span class="p">))</span>
-
-                <span class="n">tf</span><span class="o">.</span><span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;image after unit </span><span class="si">%s</span><span class="s1">: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">name_scope</span><span class="p">,</span> <span class="n">x</span><span class="o">.</span><span class="n">get_shape</span><span class="p">())</span>
-                <span class="k">return</span> <span class="n">x</span>
-
-        <span class="k">def</span> <span class="nf">_conv</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">kernel_size</span><span class="p">,</span> <span class="n">filters</span><span class="p">,</span> <span class="n">strides</span><span class="p">,</span> <span class="n">is_atrous</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
-            <span class="sd">&quot;&quot;&quot;Convolution.&quot;&quot;&quot;</span>
-
-            <span class="n">padding</span> <span class="o">=</span> <span class="s1">&#39;SAME&#39;</span>
-            <span class="k">if</span> <span class="ow">not</span> <span class="n">is_atrous</span> <span class="ow">and</span> <span class="n">strides</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
-                <span class="n">pad</span> <span class="o">=</span> <span class="n">kernel_size</span> <span class="o">-</span> <span class="mi">1</span>
-                <span class="n">pad_beg</span> <span class="o">=</span> <span class="n">pad</span> <span class="o">//</span> <span class="mi">2</span>
-                <span class="n">pad_end</span> <span class="o">=</span> <span class="n">pad</span> <span class="o">-</span> <span class="n">pad_beg</span>
-                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_data_format</span> <span class="o">==</span> <span class="s1">&#39;channels_first&#39;</span><span class="p">:</span>
-                    <span class="n">x</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">pad</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="p">[[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="p">[</span><span class="n">pad_beg</span><span class="p">,</span> <span class="n">pad_end</span><span class="p">],</span> <span class="p">[</span><span class="n">pad_beg</span><span class="p">,</span> <span class="n">pad_end</span><span class="p">]])</span>
-                <span class="k">else</span><span class="p">:</span>
-                    <span class="n">x</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">pad</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="p">[[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="p">[</span><span class="n">pad_beg</span><span class="p">,</span> <span class="n">pad_end</span><span class="p">],</span> <span class="p">[</span><span class="n">pad_beg</span><span class="p">,</span> <span class="n">pad_end</span><span class="p">],</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]])</span>
-                <span class="n">padding</span> <span class="o">=</span> <span class="s1">&#39;VALID&#39;</span>
-            <span class="k">return</span> <span class="n">tf</span><span class="o">.</span><span class="n">layers</span><span class="o">.</span><span class="n">conv2d</span><span class="p">(</span>
-                <span class="n">inputs</span><span class="o">=</span><span class="n">x</span><span class="p">,</span>
-                <span class="n">kernel_size</span><span class="o">=</span><span class="n">kernel_size</span><span class="p">,</span>
-                <span class="n">filters</span><span class="o">=</span><span class="n">filters</span><span class="p">,</span>
-                <span class="n">strides</span><span class="o">=</span><span class="n">strides</span><span class="p">,</span>
-                <span class="n">padding</span><span class="o">=</span><span class="n">padding</span><span class="p">,</span>
-                <span class="n">use_bias</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-                <span class="n">data_format</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_data_format</span><span class="p">)</span>
-
-        <span class="k">def</span> <span class="nf">_batch_norm</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
-            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_data_format</span> <span class="o">==</span> <span class="s1">&#39;channels_first&#39;</span><span class="p">:</span>
-                <span class="n">data_format</span> <span class="o">=</span> <span class="s1">&#39;NCHW&#39;</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">data_format</span> <span class="o">=</span> <span class="s1">&#39;NHWC&#39;</span>
-            <span class="k">return</span> <span class="n">tf</span><span class="o">.</span><span class="n">contrib</span><span class="o">.</span><span class="n">layers</span><span class="o">.</span><span class="n">batch_norm</span><span class="p">(</span>
-                <span class="n">x</span><span class="p">,</span>
-                <span class="n">decay</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_batch_norm_decay</span><span class="p">,</span>
-                <span class="n">center</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-                <span class="n">scale</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-                <span class="n">epsilon</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_batch_norm_epsilon</span><span class="p">,</span>
-                <span class="n">is_training</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_is_training</span><span class="p">,</span>
-                <span class="n">fused</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-                <span class="n">data_format</span><span class="o">=</span><span class="n">data_format</span><span class="p">)</span>
-
-        <span class="k">def</span> <span class="nf">_relu</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
-            <span class="k">return</span> <span class="n">tf</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">relu</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
-
-        <span class="k">def</span> <span class="nf">_fully_connected</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">out_dim</span><span class="p">):</span>
-            <span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">name_scope</span><span class="p">(</span><span class="s1">&#39;fully_connected&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">name_scope</span><span class="p">:</span>
-                <span class="n">x</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">layers</span><span class="o">.</span><span class="n">dense</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">out_dim</span><span class="p">)</span>
-
-            <span class="n">tf</span><span class="o">.</span><span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;image after unit </span><span class="si">%s</span><span class="s1">: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">name_scope</span><span class="p">,</span> <span class="n">x</span><span class="o">.</span><span class="n">get_shape</span><span class="p">())</span>
-            <span class="k">return</span> <span class="n">x</span>
-
-        <span class="k">def</span> <span class="nf">_avg_pool</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">pool_size</span><span class="p">,</span> <span class="n">stride</span><span class="p">):</span>
-            <span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">name_scope</span><span class="p">(</span><span class="s1">&#39;avg_pool&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">name_scope</span><span class="p">:</span>
-                <span class="n">x</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">layers</span><span class="o">.</span><span class="n">average_pooling2d</span><span class="p">(</span>
-                    <span class="n">x</span><span class="p">,</span> <span class="n">pool_size</span><span class="p">,</span> <span class="n">stride</span><span class="p">,</span> <span class="s1">&#39;SAME&#39;</span><span class="p">,</span> <span class="n">data_format</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_data_format</span><span class="p">)</span>
-
-            <span class="n">tf</span><span class="o">.</span><span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;image after unit </span><span class="si">%s</span><span class="s1">: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">name_scope</span><span class="p">,</span> <span class="n">x</span><span class="o">.</span><span class="n">get_shape</span><span class="p">())</span>
-            <span class="k">return</span> <span class="n">x</span>
-
-        <span class="k">def</span> <span class="nf">_global_avg_pool</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
-            <span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">name_scope</span><span class="p">(</span><span class="s1">&#39;global_avg_pool&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">name_scope</span><span class="p">:</span>
-                <span class="k">assert</span> <span class="n">x</span><span class="o">.</span><span class="n">get_shape</span><span class="p">()</span><span class="o">.</span><span class="n">ndims</span> <span class="o">==</span> <span class="mi">4</span>
-                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_data_format</span> <span class="o">==</span> <span class="s1">&#39;channels_first&#39;</span><span class="p">:</span>
-                    <span class="n">x</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">reduce_mean</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">])</span>
-                <span class="k">else</span><span class="p">:</span>
-                    <span class="n">x</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">reduce_mean</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">])</span>
-            <span class="n">tf</span><span class="o">.</span><span class="n">logging</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;image after unit </span><span class="si">%s</span><span class="s1">: </span><span class="si">%s</span><span class="s1">&#39;</span><span class="p">,</span> <span class="n">name_scope</span><span class="p">,</span> <span class="n">x</span><span class="o">.</span><span class="n">get_shape</span><span class="p">())</span>
-            <span class="k">return</span> <span class="n">x</span>
-
-    <span class="c1">####################################### end Resnet base model definition ######################################</span>
-
-    <span class="c1">####################################### start cifar resnet subclassing ########################################</span>
-
-    <span class="k">class</span> <span class="nc">ResNetCifar10</span><span class="p">(</span><span class="n">ResNet</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Cifar10 model with ResNetV1 and basic residual block.&quot;&quot;&quot;</span>
-
-        <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
-                     <span class="n">num_layers</span><span class="p">,</span>
-                     <span class="n">is_training</span><span class="p">,</span>
-                     <span class="n">batch_norm_decay</span><span class="p">,</span>
-                     <span class="n">batch_norm_epsilon</span><span class="p">,</span>
-                     <span class="n">data_format</span><span class="o">=</span><span class="s1">&#39;channels_first&#39;</span><span class="p">):</span>
-            <span class="nb">super</span><span class="p">(</span><span class="n">ResNetCifar10</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
-                <span class="n">is_training</span><span class="p">,</span>
-                <span class="n">data_format</span><span class="p">,</span>
-                <span class="n">batch_norm_decay</span><span class="p">,</span>
-                <span class="n">batch_norm_epsilon</span>
-            <span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">n</span> <span class="o">=</span> <span class="p">(</span><span class="n">num_layers</span> <span class="o">-</span> <span class="mi">2</span><span class="p">)</span> <span class="o">//</span> <span class="mi">6</span>
-            <span class="c1"># Add one in case label starts with 1. No impact if label starts with 0.</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">num_classes</span> <span class="o">=</span> <span class="mi">5</span> <span class="o">+</span> <span class="mi">1</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">filters</span> <span class="o">=</span> <span class="p">[</span><span class="mi">16</span><span class="p">,</span> <span class="mi">16</span><span class="p">,</span> <span class="mi">32</span><span class="p">,</span> <span class="mi">64</span><span class="p">]</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">strides</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span>
-
-        <span class="k">def</span> <span class="nf">forward_pass</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">input_data_format</span><span class="o">=</span><span class="s1">&#39;channels_last&#39;</span><span class="p">):</span>
-            <span class="sd">&quot;&quot;&quot;Build the core model within the graph.&quot;&quot;&quot;</span>
-            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_data_format</span> <span class="o">!=</span> <span class="n">input_data_format</span><span class="p">:</span>
-                <span class="k">if</span> <span class="n">input_data_format</span> <span class="o">==</span> <span class="s1">&#39;channels_last&#39;</span><span class="p">:</span>
-                    <span class="c1"># Computation requires channels_first.</span>
-                    <span class="n">x</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">])</span>
-                <span class="k">else</span><span class="p">:</span>
-                    <span class="c1"># Computation requires channels_last.</span>
-                    <span class="n">x</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span>
-
-            <span class="c1"># Image standardization.</span>
-            <span class="n">x</span> <span class="o">=</span> <span class="n">x</span> <span class="o">/</span> <span class="mi">128</span> <span class="o">-</span> <span class="mi">1</span>
-
-            <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_conv</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">16</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
-            <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_batch_norm</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
-            <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_relu</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
-
-            <span class="c1"># Use basic (non-bottleneck) block and ResNet V1 (post-activation).</span>
-            <span class="n">res_func</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_residual_v1</span>
-
-            <span class="c1"># 3 stages of block stacking.</span>
-            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">):</span>
-                <span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">name_scope</span><span class="p">(</span><span class="s1">&#39;stage&#39;</span><span class="p">):</span>
-                    <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n</span><span class="p">):</span>
-                        <span class="k">if</span> <span class="n">j</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-                            <span class="c1"># First block in a stage, filters and strides may change.</span>
-                            <span class="n">x</span> <span class="o">=</span> <span class="n">res_func</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">filters</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">filters</span><span class="p">[</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">],</span>
-                                         <span class="bp">self</span><span class="o">.</span><span class="n">strides</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
-                        <span class="k">else</span><span class="p">:</span>
-                            <span class="c1"># Following blocks in a stage, constant filters and unit stride.</span>
-                            <span class="n">x</span> <span class="o">=</span> <span class="n">res_func</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">filters</span><span class="p">[</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">filters</span><span class="p">[</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">],</span> <span class="mi">1</span><span class="p">)</span>
-
-            <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_global_avg_pool</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
-            <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fully_connected</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_classes</span><span class="p">)</span>
-
-            <span class="k">return</span> <span class="n">x</span>
-    <span class="c1">####################################### end cifar resnet subclassing ########################################</span>
-
-    <span class="c1">####################################### start loss etc definitions ##########################################</span>
-
-    <span class="n">num_layers</span> <span class="o">=</span> <span class="mi">44</span>
-    <span class="n">batch_norm_decay</span> <span class="o">=</span> <span class="mf">0.997</span>
-    <span class="n">batch_norm_epsilon</span> <span class="o">=</span> <span class="mf">1e-5</span>
-    <span class="n">weight_decay</span> <span class="o">=</span> <span class="mf">2e-4</span>
-    <span class="n">learning_rate</span> <span class="o">=</span> <span class="mf">0.1</span>
-
-    <span class="n">is_training</span> <span class="o">=</span> <span class="p">(</span><span class="n">mode</span> <span class="o">==</span> <span class="n">tf</span><span class="o">.</span><span class="n">estimator</span><span class="o">.</span><span class="n">ModeKeys</span><span class="o">.</span><span class="n">TRAIN</span><span class="p">)</span>
-
-    <span class="n">model</span> <span class="o">=</span> <span class="n">ResNetCifar10</span><span class="p">(</span>
-        <span class="n">num_layers</span><span class="p">,</span>
-        <span class="n">batch_norm_decay</span><span class="o">=</span><span class="n">batch_norm_decay</span><span class="p">,</span>
-        <span class="n">batch_norm_epsilon</span><span class="o">=</span><span class="n">batch_norm_epsilon</span><span class="p">,</span>
-        <span class="n">is_training</span><span class="o">=</span><span class="n">is_training</span><span class="p">,</span>
-        <span class="n">data_format</span><span class="o">=</span><span class="s2">&quot;channels_last&quot;</span><span class="p">)</span>
-
-    <span class="n">data</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">feature_column</span><span class="o">.</span><span class="n">input_layer</span><span class="p">(</span><span class="n">features</span><span class="p">,</span> <span class="p">[</span><span class="n">tf</span><span class="o">.</span><span class="n">feature_column</span><span class="o">.</span><span class="n">numeric_column</span><span class="p">(</span><span class="s2">&quot;data&quot;</span><span class="p">,</span> <span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="mi">32</span><span class="p">,</span><span class="mi">32</span><span class="p">,</span><span class="mi">3</span><span class="p">))])</span>
-    <span class="n">data</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="mi">32</span><span class="p">,</span><span class="mi">32</span><span class="p">,</span><span class="mi">3</span><span class="p">))</span>
-    <span class="n">logits</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">forward_pass</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">input_data_format</span><span class="o">=</span><span class="s1">&#39;channels_last&#39;</span><span class="p">)</span>
-
-    <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="n">tf</span><span class="o">.</span><span class="n">estimator</span><span class="o">.</span><span class="n">ModeKeys</span><span class="o">.</span><span class="n">PREDICT</span><span class="p">:</span>
-        <span class="n">predictions</span> <span class="o">=</span> <span class="p">{</span>
-            <span class="s1">&#39;class_ids&#39;</span><span class="p">:</span> <span class="n">tf</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="nb">input</span><span class="o">=</span><span class="n">logits</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">),</span>
-            <span class="s1">&#39;probabilities&#39;</span><span class="p">:</span> <span class="n">tf</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">softmax</span><span class="p">(</span><span class="n">logits</span><span class="p">),</span>
-            <span class="s1">&#39;logits&#39;</span><span class="p">:</span> <span class="n">logits</span><span class="p">,</span>
-        <span class="p">}</span>
-        <span class="k">return</span> <span class="n">tf</span><span class="o">.</span><span class="n">estimator</span><span class="o">.</span><span class="n">EstimatorSpec</span><span class="p">(</span><span class="n">mode</span><span class="p">,</span> <span class="n">predictions</span><span class="o">=</span><span class="n">predictions</span><span class="p">)</span>
-
-    <span class="n">loss</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">losses</span><span class="o">.</span><span class="n">sparse_softmax_cross_entropy</span><span class="p">(</span><span class="n">logits</span><span class="o">=</span><span class="n">logits</span><span class="p">,</span> <span class="n">labels</span><span class="o">=</span><span class="n">labels</span><span class="p">)</span>
-    <span class="n">loss</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">reduce_mean</span><span class="p">(</span><span class="n">loss</span><span class="p">)</span>
-    <span class="n">model_params</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">trainable_variables</span><span class="p">()</span>
-    <span class="n">loss</span> <span class="o">+=</span> <span class="n">weight_decay</span> <span class="o">*</span> <span class="n">tf</span><span class="o">.</span><span class="n">add_n</span><span class="p">([</span><span class="n">tf</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">l2_loss</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">model_params</span><span class="p">])</span>
-
-    <span class="c1">####################################### end loss etc definitions ############################################</span>
-    <span class="c1"># Compute evaluation metrics.</span>
-    <span class="n">accuracy</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">metrics</span><span class="o">.</span><span class="n">accuracy</span><span class="p">(</span><span class="n">labels</span><span class="o">=</span><span class="n">labels</span><span class="p">,</span> <span class="n">predictions</span><span class="o">=</span><span class="n">tf</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">logits</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">),</span>
-                                   <span class="n">name</span><span class="o">=</span><span class="s1">&#39;acc_op&#39;</span><span class="p">)</span>
-    <span class="n">metrics</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;accuracy&#39;</span><span class="p">:</span> <span class="n">accuracy</span><span class="p">}</span>
-    <span class="n">tf</span><span class="o">.</span><span class="n">summary</span><span class="o">.</span><span class="n">scalar</span><span class="p">(</span><span class="s1">&#39;accuracy&#39;</span><span class="p">,</span> <span class="n">accuracy</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
-    <span class="c1"># TODO tf.summary.scalar(&#39;accuracy&#39;, accuracy[1])</span>
-
-    <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="n">tf</span><span class="o">.</span><span class="n">estimator</span><span class="o">.</span><span class="n">ModeKeys</span><span class="o">.</span><span class="n">EVAL</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">tf</span><span class="o">.</span><span class="n">estimator</span><span class="o">.</span><span class="n">EstimatorSpec</span><span class="p">(</span> <span class="n">mode</span><span class="p">,</span> <span class="n">loss</span><span class="o">=</span><span class="n">loss</span><span class="p">,</span> <span class="n">eval_metric_ops</span><span class="o">=</span><span class="n">metrics</span><span class="p">)</span>
-
-    <span class="c1"># Create training op.</span>
-    <span class="k">assert</span> <span class="n">mode</span> <span class="o">==</span> <span class="n">tf</span><span class="o">.</span><span class="n">estimator</span><span class="o">.</span><span class="n">ModeKeys</span><span class="o">.</span><span class="n">TRAIN</span>
-    <span class="c1">#FIXME</span>
-    <span class="n">num_batches_per_epoch</span> <span class="o">=</span> <span class="mi">45000</span> <span class="o">//</span> <span class="mi">64</span>  <span class="c1"># * num_workers)</span>
-    <span class="n">boundaries</span> <span class="o">=</span> <span class="p">[</span> <span class="n">num_batches_per_epoch</span> <span class="o">*</span> <span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">82</span><span class="p">,</span> <span class="mi">123</span><span class="p">,</span> <span class="mi">300</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int64</span><span class="p">)]</span>
-    <span class="n">staged_lr</span> <span class="o">=</span> <span class="p">[</span><span class="n">learning_rate</span> <span class="o">*</span> <span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">,</span> <span class="mf">0.01</span><span class="p">,</span> <span class="mf">0.002</span><span class="p">]]</span>
-    <span class="n">learning_rate</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">train</span><span class="o">.</span><span class="n">piecewise_constant</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">train</span><span class="o">.</span><span class="n">get_global_step</span><span class="p">(),</span> <span class="n">boundaries</span><span class="p">,</span> <span class="n">staged_lr</span><span class="p">)</span>
-    <span class="n">optimizer</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">train</span><span class="o">.</span><span class="n">MomentumOptimizer</span><span class="p">(</span><span class="n">learning_rate</span><span class="o">=</span><span class="n">learning_rate</span><span class="p">,</span> <span class="n">momentum</span><span class="o">=</span><span class="mf">0.9</span><span class="p">)</span>
-
-    <span class="c1"># optimizer = tf.train.SyncReplicasOptimizer(optimizer, 4, 4)</span>
-    <span class="c1"># optimizer.make_session_run_hook()</span>
-
-    <span class="n">global_step</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">train</span><span class="o">.</span><span class="n">get_global_step</span><span class="p">()</span>
-    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Device is&quot;</span><span class="p">)</span>
-    <span class="nb">print</span><span class="p">(</span><span class="n">global_step</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
-    <span class="n">train_op</span> <span class="o">=</span> <span class="n">optimizer</span><span class="o">.</span><span class="n">minimize</span><span class="p">(</span><span class="n">loss</span><span class="p">,</span> <span class="n">global_step</span><span class="o">=</span><span class="n">global_step</span><span class="p">)</span>
-
-
-    <span class="n">update_ops</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">get_collection</span><span class="p">(</span><span class="n">tf</span><span class="o">.</span><span class="n">GraphKeys</span><span class="o">.</span><span class="n">UPDATE_OPS</span><span class="p">)</span>
-    <span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">control_dependencies</span><span class="p">(</span><span class="n">update_ops</span><span class="p">):</span>
-        <span class="k">with</span> <span class="n">tf</span><span class="o">.</span><span class="n">control_dependencies</span><span class="p">([</span><span class="n">train_op</span><span class="p">]):</span>
-            <span class="n">train_op</span> <span class="o">=</span> <span class="n">tf</span><span class="o">.</span><span class="n">Print</span><span class="p">(</span><span class="n">global_step</span><span class="p">,</span> <span class="p">[</span><span class="n">global_step</span><span class="p">])</span>
-
-    <span class="k">return</span> <span class="n">tf</span><span class="o">.</span><span class="n">estimator</span><span class="o">.</span><span class="n">EstimatorSpec</span><span class="p">(</span><span class="n">mode</span><span class="p">,</span> <span class="n">loss</span><span class="o">=</span><span class="n">loss</span><span class="p">,</span> <span class="n">train_op</span><span class="o">=</span><span class="n">train_op</span><span class="p">,</span> <span class="n">training_chief_hooks</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+<div class=" highlight hl-ipython3"><pre><span></span><span class="kn">import</span> <span class="nn">sbrain</span>
+<span class="n">sbrain</span><span class="o">.</span><span class="n">_debug</span> <span class="o">=</span> <span class="kc">True</span>
 </pre></div>
 
     </div>
 </div>
 </div>
 
-</div>
-<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
-</div><div class="inner_cell">
-<div class="text_cell_render border-box-sizing rendered_html">
-<h3 id="Run-the-job">Run the job<a class="anchor-link" href="#Run-the-job">&#182;</a></h3><p>Below we run this setup for 5000 iterations and two workers. We save this model under the name "Cifar10_Odd_Classes_5000_Iters". Later in <a href="2_TransferLearning.ipynb">TransferLearning Notebook</a>, we will look this up and transfer from this model.</p>
-
-</div>
-</div>
 </div>
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
 <div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
 <div class="inner_cell">
     <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span></span><span class="n">estimator</span> <span class="o">=</span> <span class="n">Estimator</span><span class="o">.</span><span class="n">NewClassificationEstimator</span><span class="p">(</span><span class="n">model_fn</span><span class="o">=</span><span class="n">cifar_model_function</span><span class="p">)</span>
-<span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;CIFAR10_odd_class_estimator&quot;</span>
-<span class="n">estimator</span> <span class="o">=</span> <span class="n">Estimator</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="s2">&quot;Resnet Cifar10 estimator&quot;</span><span class="p">,</span> <span class="n">estimator</span><span class="p">)</span>
-
-<span class="n">hyper_parameters</span> <span class="o">=</span> <span class="n">HParams</span><span class="p">(</span><span class="n">iterations</span><span class="o">=</span><span class="mi">5000</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="mi">128</span><span class="p">)</span>
-<span class="n">rc</span> <span class="o">=</span> <span class="n">RunConfig</span><span class="p">(</span><span class="n">no_of_ps</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">no_of_workers</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">run_eval</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">use_gpu</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<div class=" highlight hl-ipython3"><pre><span></span><span class="n">estimator</span> <span class="o">=</span> <span class="n">Estimator</span><span class="o">.</span><span class="n">NewClassificationEstimator</span><span class="p">(</span><span class="n">pytorch_model_fn</span><span class="o">=</span><span class="n">model_fn</span><span class="p">)</span>
+<span class="c1"># name = &quot;MyFirstEstimator&quot;</span>
+<span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;MyFirstEstimator&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">())</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+<span class="n">estimator</span> <span class="o">=</span> <span class="n">Estimator</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="s2">&quot;Hello&quot;</span><span class="p">,</span> <span class="n">estimator</span><span class="p">)</span>
 
 
-<span class="n">odd_class_experiment_name</span> <span class="o">=</span> <span class="s2">&quot;Cifar10_Odd_Classes_5000_Iterations&quot;</span>
-<span class="n">experiment</span> <span class="o">=</span> <span class="n">Experiment</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">experiment_name</span><span class="o">=</span><span class="n">odd_class_experiment_name</span><span class="p">,</span>
-                     <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Cifar10 Odd classes Model&quot;</span><span class="p">,</span>
-                     <span class="n">estimator</span><span class="o">=</span><span class="n">estimator</span><span class="p">,</span>
-                     <span class="n">hyper_parameters</span><span class="o">=</span><span class="n">hyper_parameters</span><span class="p">,</span>
-                     <span class="n">run_config</span><span class="o">=</span><span class="n">rc</span><span class="p">,</span>
-                     <span class="n">dataset_version_split</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                     <span class="n">input_function</span><span class="o">=</span><span class="n">only_odd_classes_input_function</span><span class="p">)</span>
-<span class="n">job</span> <span class="o">=</span> <span class="n">experiment</span><span class="o">.</span><span class="n">get_single_job</span><span class="p">()</span>
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;tensorboard url&quot;</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">get_tensorboard_url</span><span class="p">())</span>
+<span class="n">hyper_parameters</span> <span class="o">=</span> <span class="n">HParams</span><span class="p">(</span><span class="n">iterations</span><span class="o">=</span><span class="mi">8000</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">lr</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span> <span class="n">momentum</span><span class="o">=</span><span class="mf">0.5</span><span class="p">)</span>
+<span class="n">rc</span> <span class="o">=</span> <span class="n">RunConfig</span><span class="p">(</span><span class="n">no_of_ps</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">no_of_workers</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">summary_save_frequency</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span> <span class="n">run_eval</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">use_gpu</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">sync</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+              <span class="n">benchmark_command</span><span class="o">=</span><span class="s2">&quot;{</span><span class="se">\&quot;</span><span class="s2">cmd</span><span class="se">\&quot;</span><span class="s2">:</span><span class="se">\&quot;\&quot;</span><span class="s2">}&quot;</span><span class="p">)</span>
 
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Has the job finished? </span><span class="si">{}</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">has_finished</span><span class="p">()))</span>
 
-<span class="n">job</span><span class="o">.</span><span class="n">wait_until_finish</span><span class="p">()</span>
-
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Model metrics..&quot;</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">get_model</span><span class="p">()</span><span class="o">.</span><span class="n">model_metrics</span><span class="p">)</span>
+<span class="c1"># job = Experiment.run(experiment_name=&quot;exp with space&quot; + str(time.time()).replace(&quot;.&quot;, &quot;&quot;),</span>
+<span class="n">exper</span> <span class="o">=</span> <span class="n">Experiment</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">experiment_name</span><span class="o">=</span><span class="s2">&quot;MyFirstModel&quot;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">())</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+                         <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Really first model&quot;</span><span class="p">,</span>
+                         <span class="n">estimator</span><span class="o">=</span><span class="n">estimator</span><span class="p">,</span>
+                         <span class="n">hyper_parameters</span><span class="o">=</span><span class="n">hyper_parameters</span><span class="p">,</span>
+                         <span class="n">run_config</span><span class="o">=</span><span class="n">rc</span><span class="p">,</span>
+                         <span class="n">dataset_version_split</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                         <span class="n">input_function</span><span class="o">=</span><span class="n">input_fn</span><span class="p">,</span>
+                      <span class="n">user_functions</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;train_step&#39;</span><span class="p">:</span><span class="n">train_step</span><span class="p">,</span> <span class="s1">&#39;test_step&#39;</span><span class="p">:</span><span class="n">test_step</span><span class="p">})</span>
+<span class="n">job</span> <span class="o">=</span> <span class="n">exper</span><span class="o">.</span><span class="n">get_single_job</span><span class="p">()</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">)</span>
 </pre></div>
 
     </div>
@@ -13638,13 +13321,61 @@ In this function, we download the CIFAR-10 data, load TFRecordDataset from it an
 </div>
 
 </div>
-<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
-</div><div class="inner_cell">
-<div class="text_cell_render border-box-sizing rendered_html">
-<p>We are done!!</p>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="n">job</span><span class="o">.</span><span class="n">has_finished</span><span class="p">())</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
 
 </div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="c1"># job.wait_until_finish()</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">40</span><span class="p">)</span>
+<span class="n">job</span><span class="o">.</span><span class="n">cancel</span><span class="p">()</span>
+</pre></div>
+
+    </div>
 </div>
+</div>
+
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="n">job</span><span class="o">.</span><span class="n">has_finished</span><span class="p">()</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
+
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+<span class="n">exper</span><span class="o">.</span><span class="n">report_status</span><span class="p">()</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
+
 </div>
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
